@@ -1,5 +1,14 @@
 Notes on interesting markup in man pages to use to extract information
 
+This markup format is called "roff",  and is processed by groff or troff.
+see "man roff(7)"
+
+Man-pages project (man7.org): The definitive web documentation for Linux/Unix groff_man(7).
+GNU Troff (Groff) Manual: Detailed specification of macro packages and low-level roff formatting.
+----------------------
+
+1. Inline Font Escapes (\f...)
+    These change font styles inline without adding line breaks:
 
 \fB
     format bold
@@ -8,43 +17,71 @@ Notes on interesting markup in man pages to use to extract information
 \fI
     ?Italic? Causes marked text to be underlined in man page viewer
 \fP
-    ?used after \fB on text that is part of a bullet point?
+    Switch font to Previous font (restores whatever font was active before the last \f switch).
+    Example: \fBbold\fP returns to the font before \fB.
 \fR
-    format regular, turns off initial formatting
+    format Roman, regular / normal.
     Example:
         \fBinitscr\fR
+
+2. Line & Spacing Controls
+
 .br
-    line break
-.bP
-    bullet point, used to indicate list items and intent them.
+    Break
+    forces a line break immediately without inserting vertical paragraph space.
 
-.B
-    ?bold section header?
-.sp
-    section paragraph? Breaks line and adds blank line.
+.sp [n]
+    Space
+    inserts vertical spacing (blank lines).
+    .sp without arguments inserts 1 blank line; .sp 2 inserts 2 lines.
 
-.PP
-    paragraph break? Creates a section that is indented under a sub-section heading.
+3. Paragraph & Section Macros
 
-.RE
-    ?return to previous indent level?
-
-.RS 5
-    ?? used before bullet points in SIG Handlers discussion
-
-.SH
-    section header
+.SH "Section Name"
+    Section heading
+    starts a primary section (typically rendered bold and flush left).
     Examples:
         .SH NAME, .SH SYNOPSIS, .SH DESCRIPTION, .SH RETURN VALUE, .SH NOTES, .SH PORTABILITY, .SH SEE ALSO
 
-.SS
-    sub-section
+.SS "Subsection Name"
+    Subsection heading
+    starts a subsection with a slight indent or lighter emphasis.
     Examples:
         .SS initscr, .SS newterm, .SS endwin
 
+.PP (or .P, .LP)
+    Paragraph break.
+    resets indentation and begins a standard body paragraph with a preceding blank line.
 
-.TP 5
-    ?? Used around SIG Handler discussion
+4. Standalone Font Macros
+
+.B [text]: Sets text on the line in Bold. If arguments are omitted, the entire next line is bolded.
+
+.I [text]: Sets text in Italic (underlined).
+
+.BI, .BR, .RB, .IB:
+    Alternating font macros (e.g., .BR function (3) bolds function and keeps (3) in Roman without spaces).
+
+5. Indentation & Lists
+
+.RS [n]: Relative Shift / Start
+    moves the left margin to the right by n characters (default 0.5 inches / ~4-5 characters).
+    Useful for nested code blocks or sub-lists.
+
+.RE: Relative End
+    moves the left margin back to the previous indent level.
+
+.TP [n]: Tagged Paragraph (Hanging Indent)
+    creates a definition list. The next line is the tag/label, and the following lines are the definition/body indented by n spaces.
+    Example:
+        .TP 5
+        \fBinitscr\fR
+        Initializes the curses system and allocates memory.
+
+.bP
+    Bullet point
+    outputs a bullet symbol (• or *) and sets up a list item.
+
 
 
 
