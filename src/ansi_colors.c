@@ -60,6 +60,7 @@ ANSI models color using escape sequences that instruct the terminal display engi
 
 
 #include <stdio.h>
+#include <locale.h>
 
 void standard();
 void high_intensity();
@@ -70,7 +71,17 @@ void grayscale_red();
 void grayscale_green();
 void grayscale_blue();
 
-int main(void) {
+/**
+ * Run as `ansi_colors | less -SR`
+ * -S (--chop-long-lines): Disables line wrapping and enables horizontal panning.
+ * -R (--RAW-CONTROL-CHARS): Preserves ANSI/TrueColor escape sequences.
+ *
+ */
+int main() {
+    setlocale(LC_ALL, ""); // Initializes the system's native UTF-8 locale
+    // Disable auto-wrap (DECAWM Reset)
+    printf("\033[?7l");
+
 #if 0
     standard();
     high_intensity();
@@ -78,9 +89,13 @@ int main(void) {
     grayscale();
     grayscale2();
 # endif
+
     grayscale_red();
     grayscale_green();
     grayscale_blue();
+
+    // Re-enable auto-wrap before exiting to preserve terminal state
+    printf("\033[?7h");
     return 0;
 }
 

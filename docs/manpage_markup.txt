@@ -1,0 +1,64 @@
+Notes on interesting markup in man pages to use to extract information
+
+
+\fB
+    format bold
+    Example:
+        \fBinitscr\fR
+\fI
+    ?Italic? Causes marked text to be underlined in man page viewer
+\fP
+    ?used after \fB on text that is part of a bullet point?
+\fR
+    format regular, turns off initial formatting
+    Example:
+        \fBinitscr\fR
+.br
+    line break
+.bP
+    bullet point, used to indicate list items and intent them.
+
+.B
+    ?bold section header?
+.sp
+    section paragraph? Breaks line and adds blank line.
+
+.PP
+    paragraph break? Creates a section that is indented under a sub-section heading.
+
+.RE
+    ?return to previous indent level?
+
+.RS 5
+    ?? used before bullet points in SIG Handlers discussion
+
+.SH
+    section header
+    Examples:
+        .SH NAME, .SH SYNOPSIS, .SH DESCRIPTION, .SH RETURN VALUE, .SH NOTES, .SH PORTABILITY, .SH SEE ALSO
+
+.SS
+    sub-section
+    Examples:
+        .SS initscr, .SS newterm, .SS endwin
+
+
+.TP 5
+    ?? Used around SIG Handler discussion
+
+
+
+
+
+Useful sections:
+
+.SH NAME
+    List of function names included on the man page
+.SH SYNOPSIS
+    List of functions included in the page and their declarations.
+.SH DESCRIPTION
+    Detailed information about the use of each function
+.SH RETURN VALUE
+    The values returned by the functions with information about them
+.SH NOTES
+    Notes on using functions mentioning special considerations
