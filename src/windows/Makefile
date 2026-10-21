@@ -12,6 +12,10 @@ EXE_DIR=../../out/windows
 
 EXES = \
 	${EXE_DIR}/window1 \
+	${EXE_DIR}/window2 \
+	${EXE_DIR}/resize_handling \
+	${EXE_DIR}/resize_newwin \
+
 # the next line doesn't work because it gets parsed as "window1.cpp, window2.cpp,..." instead of
 # "window1, window2, ..."
 #	${EXE_DIR}/$(wildcard window*) \

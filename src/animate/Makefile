@@ -1,4 +1,6 @@
-# Makefile for src Files
+# src/animate/Makefile
+
+# Makefile for C++ src Files
 
 # A few variables
 

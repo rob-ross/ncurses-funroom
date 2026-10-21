@@ -1,21 +1,18 @@
-# Makefile for src Files
+# Makefile for misc .c src Files
 
 # A few variables
-
-
 CC=clang
 CFLAGS=-std=c23
 LIBS=-lncurses
 
 SRC_DIR=.
-EXE_DIR=../out
+EXE_DIR=../../out/misc
 
 EXES = \
 	${EXE_DIR}/ansi_colors \
-	${EXE_DIR}/simple_color \
-	${EXE_DIR}/manual_term_escapes \
 	${EXE_DIR}/char_displayer \
-	${EXE_DIR}/simple_animate1 \
+	${EXE_DIR}/manual_term_escapes \
+	${EXE_DIR}/simple_color \
 
 DATA_FILES = \
 	${EXE_DIR}/Blocks.txt \
@@ -26,10 +23,14 @@ all:    ${EXES}
 # Specific prerequisite: char_displayer requires the data files
 ${EXE_DIR}/char_displayer: ${DATA_FILES}
 
+# Ensure destination directory exists
+${EXE_DIR}:
+	mkdir -p ${EXE_DIR}
+
 # for every item in EXES, this rule runs to make it. Depends on an object file with the same stem
 # $@ means "copy everything to the left of the colon"
 # $^ means "copy everything to the right of the colon"
-${EXE_DIR}/%: %.o
+${EXE_DIR}/%: %.o | ${EXE_DIR}
 	${CC} -o $@ $< ${LIBS}
 
 # Rule to copy .txt data files to EXE_DIR
