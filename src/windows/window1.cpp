@@ -61,9 +61,6 @@ int main_loop() {
 
     test1();
 
-
-
-    int c;
     timeout(-1); // makes the read block for input
     mvwprintw(stdscr, 10, 0,  "Press any key to exit...");
 
@@ -76,6 +73,7 @@ int main_loop() {
     // as if the user had actually pressed a key.
     //
     // Loop until a genuine user keypress is detected (ignoring initial PTY resize events)
+    int c;
     do {
         c = getch();  // does a wrefresh(stdscrn) before waiting for input
     } while (c == KEY_RESIZE || c == ERR);

@@ -2,9 +2,6 @@
 //
 //  Created by Rob Ross on 10/21/26.
 //
-//  Copyright (c) 2026.  All rights reserved.
-
-//
 
 #include <ncurses.h>
 
