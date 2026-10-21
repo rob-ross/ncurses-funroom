@@ -7,6 +7,7 @@ all:
 	cd ${SRC_DIR}/misc      && $(MAKE)
 	cd ${SRC_DIR}/unicode	&& $(MAKE)
 	cd ${SRC_DIR}/windows	&& $(MAKE)
+	cd ${SRC_DIR}/gookin	&& $(MAKE)
 	@echo
 	@echo "*********************************************"
 	@echo "All files Built"
@@ -19,4 +20,4 @@ clean:
 	cd ${SRC_DIR}/misc     && $(MAKE) clean
 	cd ${SRC_DIR}/unicode  && $(MAKE) clean
 	cd ${SRC_DIR}/windows  && $(MAKE) clean
-
+	cd ${SRC_DIR}/gookin   && $(MAKE) clean
