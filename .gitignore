@@ -96,3 +96,5 @@ shell-build/
 
 ncurses_programs/demo/**
 ncurses_programs/perl
+ncurses_ebook_source/
+ncurses_programs/
