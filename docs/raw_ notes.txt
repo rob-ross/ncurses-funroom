@@ -1,0 +1,1 @@
+ncurses chtype is just `typedef unsigned chtype;`

@@ -13,6 +13,9 @@ EXES = \
 	${EXE_DIR}/02-03_add2 \
 	${EXE_DIR}/02-04_add3 \
 	${EXE_DIR}/02-05_yoda \
+	${EXE_DIR}/02-06_typewriter \
+	${EXE_DIR}/02-07_yourname \
+	${EXE_DIR}/02-08_sushi \
 
 all:    ${EXES}
 

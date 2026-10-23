@@ -1,0 +1,17 @@
+I installed a homebrew version of ncurses which is supposed to be more modern and have support for extended colors.
+This is actually GNU NCURSES (New Curses)
+
+For compilers to find ncurses you may need to set:
+  export LDFLAGS=-L/usr/local/opt/ncurses/lib
+  export CPPFLAGS=-I/usr/local/opt/ncurses/include
+
+There are wide versions of the libs, such as libncursesw.a
+
+$(brew --prefix) == /usr/local
+$(brew --prefix ncurses) = /usr/local/opt/ncurses
+
+man pages for these are at:
+/usr/local/opt/ncurses/man
+
+you can check where a man page is loaded from with -w. e.g.,
+man -w curs_color
