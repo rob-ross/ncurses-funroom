@@ -14,6 +14,7 @@ EXES = \
 	${EXE_DIR}/manual_term_escapes \
 	${EXE_DIR}/simple_color \
 
+
 DATA_FILES = \
 	${EXE_DIR}/Blocks.txt \
 	${EXE_DIR}/EastAsianWidth.txt \

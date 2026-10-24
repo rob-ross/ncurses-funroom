@@ -3,6 +3,7 @@ If:
 CompileFlags:
   Add:
     - -std=c23
+    - --target=x86_64-apple-darwin
     - -I/opt/homebrew/opt/ncurses/include
     - -I/usr/local/opt/ncurses/include
 ---
@@ -11,5 +12,6 @@ If:
 CompileFlags:
   Add:
     - -std=c++23
+    - --target=x86_64-apple-darwin
     - -I/opt/homebrew/opt/ncurses/include
     - -I/usr/local/opt/ncurses/include

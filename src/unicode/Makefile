@@ -1,7 +1,8 @@
-# Makefile for src Files
+# Makefile for c and cpp src Files
 
-# A few variables
 
+CC = clang
+CFLAGS = -std=c23
 
 CXX = clang++
 CXXFLAGS = -std=c++23
@@ -11,8 +12,19 @@ LIBS =-lncurses
 SRC_DIR=.
 EXE_DIR=../../out/unicode
 
-EXES = \
-	${EXE_DIR}/udisplay_1 \
+# Automatically discover all .c files in the source directory
+SRCS = $(wildcard $(SRC_DIR)/*.c $(SRC_DIR)/*.cpp )
+
+# Extract file stems (e.g., ./foo.c -> foo )
+STEMS = $(notdir $(basename $(SRCS)))
+
+# Derive the executable targets in EXE_DIR matching each source file stem
+EXES = $(patsubst %,$(EXE_DIR)/%,$(STEMS))
+
+# Intermediate object files
+OBJS = $(patsubst %,%.o,$(STEMS))
+
+.PHONY: all clean
 
 # Default rule
 
@@ -31,8 +43,11 @@ ${EXE_DIR}/%: %.o | ${EXE_DIR}
 %.o: ${SRC_DIR}/%.cpp
 	${CXX} ${CXXFLAGS} -c -o $@ $<
 
+# Rule to compile each .c file into a .o file
+%.o: ${SRC_DIR}/%.c
+	${CC} ${CFLAGS} -o $@ -c $<
+
 # Clean up build artifacts
 clean:
 	@rm -f *.o ${EXES}
 
-.PHONY: all clean

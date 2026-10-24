@@ -1,0 +1,106 @@
+
+1. The Perspective Frustum (What the Player Sees)
+
+Typically, these games render what is visible up to 3 tiles ahead and 1 or 2 tiles to the left and right.
+You can map out this "view frustum" onto your underlying 2D grid map relative to the player's coordinate (x, y)
+and direction.
+Here is how you map out the visible grid cells to a local relative coordinate map:
+
+    Direction: ▲ NORTH
+
+    [ L3 ]  [ C3 ]  [ R3 ]    <-- 3 Tiles Ahead
+    [ L2 ]  [ C2 ]  [ R2 ]    <-- 2 Tiles Ahead
+    [ L1 ]  [ C1 ]  [ R1 ]    <-- 1 Tile Ahead
+    [ L0 ]  [PLAYER][ R0 ]    <-- Current row left/right walls
+
+
+2. The Rendering Order (The Painter's Algorithm)
+
+To ensure that close walls properly cover up walls that are farther away, you must render the cells from back to front.
+    1. Render row 3 (L3, C3, R3)
+    2. Overwrite/Render row 2 (L2, C2, R2)
+    3. Overwrite/Render row 1 (L1, C1, R1)
+    4. Overwrite/Render row 0 (L0, R0)
+
+
+3. How to Define the View Template in ncurses
+
+Because ncurses relies on a character coordinate grid (rows and columns),
+you can manually sketch out your perspective lines.
+Think of your viewport as a standard box (e.g., 40 characters wide by 20 characters high).
+If the player looks down an empty, endless corridor, the perspective lines forming the floor, ceiling, and
+side walls look like a wireframe funnel meeting in the center:
+
+(0,0)  Cols ->                             (40,0)
+  +-----------------------------------------+
+
+  | \                                     / |
+  |   \   +-------------------------+   /   |
+  |     \ | \                     / | /     |
+  |       |   \                 /   |       |
+  |       |     +-------------+     |       |
+  |       |     |   C3 Wall   |     |       |
+  |       |     +-------------+     |       |
+  |       |    /               \    |       |
+  |       |  /                   \  |       |
+  |     / | /                     \ | \     |
+  |   /   +-------------------------+   \   |
+  | /                                     \ |
+  +-----------------------------------------+
+(0,20)                                     (40,20)
+
+
+Instead of using math to calculate these coordinates dynamically, you can hardcode the line vertices for the 3 distinct depth levels!
+
+Example Mapping for Front-Facing Walls (C1, C2, C3)
+
+• If C1 (directly in front) is a wall: Draw a massive rectangle inside your viewport using box-drawing glyphs (ACS_VLINE, ACS_HLINE). This takes up nearly the whole view.
+• If C2 (two steps ahead) is a wall: Draw a medium-sized rectangle inside the viewport.
+• If C3 (three steps ahead) is a wall: Draw a tiny rectangle dead-center.
+
+Example Mapping for Side Walls (L1, R1, etc.)
+
+• If L1 is a wall, you draw the perspective lines connecting the outer frame to the C2 boundary frame.
+• If L1 is an open corridor turning left, you do not draw those lines; instead, you leave it open, allowing the background elements (L2 or L3) to show through.
+
+
+4. Implementation Blueprint in C / ncurses
+
+A clean way to write this in C is to bundle the layout coordinates for each visible segment into structural templates.
+
+```c
+typedef struct {
+    int start_x, start_y;
+    int end_x, end_y;
+} WallSegment;
+
+// Pre-defined static screen regions for a 40x20 viewport
+WallSegment C1_Wall_Face = { 2,  1, 38, 19 }; // Large centered box
+WallSegment C2_Wall_Face = { 8,  4, 32, 16 }; // Medium centered box
+WallSegment C3_Wall_Face = { 14, 7, 26, 13 }; // Small centered box
+
+void draw_wall_face(WallSegment w) {
+    // ncurses box-drawing macro to paint rectangles
+    for(int x = w.start_x; x <= w.end_x; x++) {
+        mvaddch(w.start_y, x, ACS_HLINE);
+        mvaddch(w.end_y, x, ACS_HLINE);
+    }
+    for(int y = w.start_y; y <= w.end_y; y++) {
+        mvaddch(y, w.start_x, ACS_VLINE);
+        mvaddch(y, w.end_x, ACS_VLINE);
+    }
+    // Add corners using ACS_ULCORNER, ACS_URCORNER, etc.
+}
+
+```
+
+
+
+
+By switching on and off these pre-determined segments based on your 11-cell grid check, you will get a lightning-fast, perfectly accurate 1980s pseudo-3D viewport that fits right into an standard text terminal!
+Would you like me to help write out the basic grid coordinate lookup function that translates the player's location and direction array indexes into this relative map frame?
+•
+Game Development Stack Exchange
+How did early 2D first person RPGs render a "3D" maze?
+April 27, 2022 — Early 2D first-person RPGs that used tile-based movement and 90-degree turns likely rendered their '3D' maze views using pre-rende...
+

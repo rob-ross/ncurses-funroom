@@ -7,10 +7,15 @@
 #include <wchar.h>
 #include <ncursesw/ncurses.h>
 // #include <ncurses.h>
+#include <locale.h>
 
 int main()
 {
+    /* activate Unicode character set */
+    setlocale(LC_CTYPE,"en_US.UTF-8");
+
     initscr();
+
 
     /* test for color ability of the terminal */
     if(!has_colors())
