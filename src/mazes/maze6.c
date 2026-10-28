@@ -378,7 +378,7 @@ int main() {
         init_pair(COLOR_WALL, COLOR_BLACK, COLOR_WHITE); // White walls
         init_pair(COLOR_TEXT, COLOR_WHITE, COLOR_BLACK); // Normal text
     }
-    
+
     while (game_running) {
         render_game();
         int ch = getch();
