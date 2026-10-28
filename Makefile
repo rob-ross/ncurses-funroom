@@ -9,6 +9,8 @@ all:
 	cd ${SRC_DIR}/windows	&& $(MAKE)
 	cd ${SRC_DIR}/gookin	&& $(MAKE)
 	cd ${SRC_DIR}/color	    && $(MAKE)
+	cd ${SRC_DIR}/mazes	    && $(MAKE)
+
 
 	@echo
 	@echo "*********************************************"
@@ -24,3 +26,4 @@ clean:
 	cd ${SRC_DIR}/windows  && $(MAKE) clean
 	cd ${SRC_DIR}/gookin   && $(MAKE) clean
 	cd ${SRC_DIR}/color	   && $(MAKE) clean
+	cd ${SRC_DIR}/mazes	    && $(MAKE) clean
