@@ -1,4 +1,4 @@
-//  maze6.c
+//  maze7.c
 //
 //  Created by Rob Ross on 10/28/26.
 //
