@@ -1,4 +1,15 @@
 
+glossary:
+
+grid square: refers to a x,y coordinate location in map space, distinct from a terminal cell
+
+terminal cell: an individually addressable row,col location in the Terminal screen via NCURSES
+
+terminal square: an area of the Terminal screen that corresponds to a grid square. This may encompass more
+    multiple terminal cells. E.g., cells are more tall than narrow, so we normally map a grid square to at
+    least two terminal cells.
+
+
 1. The Perspective Frustum (What the Player Sees)
 
 Typically, these games render what is visible up to 3 tiles ahead and 1 or 2 tiles to the left and right.

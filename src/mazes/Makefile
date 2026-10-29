@@ -20,6 +20,7 @@ SRCS = \
 	${SRC_DIR}/maze5.c \
 	${SRC_DIR}/maze6.c \
 	${SRC_DIR}/maze7.c \
+	${SRC_DIR}/maze8.c \
 
 
 

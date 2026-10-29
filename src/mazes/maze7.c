@@ -289,50 +289,13 @@ void render_2D_map(int left_panel_x) {
     mvaddch(player.pos.y, left_panel_x + (player.pos.x * 2) + 1, avatars[player.dir]);
 }
 
-void render_game() {
-    clear();
+void render_3D_view(int right_panel_x, int viewport_y) {
+        // PANEL B: Virtual Interface Framework
+
     ViewFrustum frustum = update_frustum();
     clear_pixel_buffer(); // Fresh slate step for vector processing buffer canvas
 
-    int left_panel_x = 0;
-    int right_panel_x = (game_map.cols * 2) + 6;
-    int viewport_y = 2;
 
-    render_2D_map(left_panel_x);
-
-    /*
-    // PANEL A: 2D Minimap Overhead with doubled horizontal characters
-    for (int y = 0; y < game_map.rows; y++) {
-        for (int x = 0; x < game_map.cols; x++) {
-            char cell_char = game_map.grid[y][x];
-            int screen_x = left_panel_x + (x * 2);
-            if (cell_char == '#') {
-                // Combine space characters with the background color attribute
-                mvaddch(y, screen_x,     ' ' | COLOR_PAIR(COLOR_WALL));
-                mvaddch(y, screen_x + 1, ' ' | COLOR_PAIR(COLOR_WALL));
-            }
-            else if (cell_char == 'E') {
-                mvaddch(y, screen_x,     '[');
-                mvaddch(y, screen_x + 1, 'E');
-            }
-            else {
-                // Ensure paths use standard background colors
-                mvaddch(y, screen_x,     ' ' | COLOR_PAIR(COLOR_TEXT));
-                mvaddch(y, screen_x + 1, ' ' | COLOR_PAIR(COLOR_TEXT));
-            }
-        }
-    }
-    char avatars[] = {'^', '>', 'v', '<'};
-    mvaddch(player.pos.y, left_panel_x + (player.pos.x * 2) + 1, avatars[player.dir]);
-    */
-
-    // divider between 2D and 3D views
-
-    for (int y = 0; y < game_map.rows || y < VIEW_H + 4; y++) {
-        mvaddch(y, right_panel_x - 3, '|');
-    }
-
-    // PANEL B: Virtual Interface Framework
     mvprintw(0, right_panel_x, "--- 3D BRAILLE VECTOR ENGINE ---");
 
     // --- HIGH-RESOLUTION RASTERIZATION DRAW PIPELINE ---
@@ -390,6 +353,26 @@ void render_game() {
     if (frustum.cells[1][1] == 'E' || frustum.cells[2][1] == 'E' || frustum.cells[3][1] == 'E') {
         mvprintw(viewport_y + (VIEW_H / 2), right_panel_x + (VIEW_W / 2) - 4, "[ ESCAPE ]");
     }
+}
+
+void render_game() {
+    clear();
+
+    int left_panel_x = 0;
+    int right_panel_x = (game_map.cols * 2) + 6;
+    int viewport_y = 2;
+
+    // Panel A : 2D overview map
+    render_2D_map(left_panel_x);
+
+    // divider between 2D and 3D views
+    for (int y = 0; y < game_map.rows || y < VIEW_H + 4; y++) {
+        mvaddch(y, right_panel_x - 3, '|');
+    }
+
+    // PANEL B: Virtual Interface Framework
+    render_3D_view(right_panel_x, viewport_y );
+
     int footer_y = (game_map.rows > VIEW_H + 4) ? game_map.rows : VIEW_H + 4;
     mvprintw(footer_y + 1, 0, "Controls: UP/DOWN (Walk), LEFT/RIGHT (Turn). Press 'q' to quit.");
     refresh();
