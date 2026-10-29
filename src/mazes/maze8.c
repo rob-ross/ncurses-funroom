@@ -404,12 +404,12 @@ void render_2D_map2(Map2 * gm, int left_panel_x, int left_panel_y) {
             // screen_x and _screen_y should be the scaled values of the top-left
             // coordinate of each terminal square
 
-            int screen_x = left_panel_x + (x * (col_scale - 1))  ; // maybe -1
-            int screen_y = left_panel_y + (y * (row_scale - 1))  ; // maybe -1
+            const int screen_x = left_panel_x + (x * (col_scale - 1))  ; // maybe -1
+            const int screen_y = left_panel_y + (y * (row_scale - 1))  ; // maybe -1
 
             //todo debug
-            // mvprintw(max_rows - 1 - y - 1, x * 12, "y:%d,x:%d, ", screen_y, screen_x);
-            // refresh();
+            mvprintw(max_rows - 1 - y - 1, x * 12, "y:%d,x:%d, ", screen_y, screen_x);
+            refresh();
 
             if (flags & WF_NORTH) {
                 for (int i = 0; i < col_scale ; ++i) {
@@ -428,42 +428,47 @@ void render_2D_map2(Map2 * gm, int left_panel_x, int left_panel_y) {
                 flags & WF_NORTH, flags & WF_WEST, left_flags & WF_NORTH, above_flags & WF_WEST  );
 
             mvaddwstr(screen_y, screen_x, joiner_str);
-            getch();
+            // getch();
 
             // todo special handling for last row in map
             if ( y == gm->rows - 1 ) {
                 // we have to render the south edges
                 if (flags & WF_SOUTH) {
                     for (int i = 0; i < col_scale; ++i) {
-                        mvaddwstr(screen_y + row_scale, screen_x+i, L"\u2500");
+                        mvaddwstr(screen_y + row_scale - 1, screen_x+i, L"\u2500");
                     }
                 }
                 //joiners
                 joiner_str = get_joiner_for_flags(
-                0, flags & WF_EAST, flags & WF_NORTH, 0  );
-                mvaddwstr(screen_y, screen_x + col_scale, joiner_str);
-                printw("last row");
-                getch();
+                flags & WF_SOUTH, 0, left_flags & WF_SOUTH, flags & WF_WEST  );
+                mvaddwstr(screen_y + row_scale - 1, screen_x , joiner_str);
+                // printw("last row");
+                // getch();
             }
 
             // todo special handling for last column in row
             if (x == gm->cols - 1 ) {
                 // last grid square in row
-                // we have to render the south and east edges
-                // if (flags & WF_SOUTH) {
-                //     for (int i = 0; i < col_scale; ++i) {
-                //         mvaddwstr(screen_y + row_scale, screen_x+i, L"\u2500");
-                //     }
-                // }
+                // we have to render the east edges
                 if (flags & WF_EAST) {
                     for (int i = 0; i < row_scale; ++i) {
-                        mvaddwstr(screen_y + i, screen_x + col_scale , L"\u2502");
+                        mvaddwstr(screen_y + i, screen_x + col_scale - 1 , L"\u2502");
                     }
                 }
                 //joiners
                 joiner_str = get_joiner_for_flags(
                 0, flags & WF_EAST, flags & WF_NORTH, 0  );
-                mvaddwstr(screen_y, screen_x + col_scale, joiner_str);
+                mvaddwstr(screen_y, screen_x + col_scale - 1, joiner_str);
+
+                // last column of last row
+                if ( y == gm->rows - 1 ) {
+                    joiner_str = get_joiner_for_flags(
+                    0, flags & WF_EAST, flags & WF_NORTH, above_flags & WF_EAST  );
+                    mvaddwstr(screen_y, screen_x + col_scale - 1, joiner_str);
+                    joiner_str = get_joiner_for_flags(
+                    0, 0, flags & WF_SOUTH, flags & WF_EAST  );
+                    mvaddwstr(screen_y + row_scale - 1, screen_x + col_scale - 1, joiner_str);
+                }
             }
         }
     }
@@ -472,7 +477,7 @@ void render_2D_map2(Map2 * gm, int left_panel_x, int left_panel_y) {
     mvaddch(left_panel_y + player.pos.y*row_scale + 1, left_panel_x + (player.pos.x * col_scale) + 2, avatars[player.dir]);
 
     //hard coding E for now
-    mvaddch(2*(row_scale +1), 9 * col_scale + 2, 'E');
+    mvaddch(left_panel_y + 2 * (row_scale -1) + 1, left_panel_x +  9 * (col_scale - 1) + 2, 'E');
 }
 
 void render_3D_view(int right_panel_x, int viewport_y) {
@@ -573,7 +578,7 @@ int main() {
         printf("Error: Could not open map.txt.\n");
         return 1;
     }
-    if (!load_map2("map2.txt")) {
+    if (!load_map2("map3.txt")) {
         printf("Error: Could not open map2.txt.\n");
         return 1;
     }
