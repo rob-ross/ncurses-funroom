@@ -1,1 +1,63 @@
 ncurses chtype is just `typedef unsigned chtype;`
+
+//3 x 3 terminal square, taller than wide
+XXX
+X X
+XXX
+
+//6 x 3 terminal square
+XXXXXX
+X    X
+XXXXXX
+
+Square view grid, We have 4 vertical spaces to draw characters. Middle is cell 1 and 2
+XXXXXXXXXXX
+X 1  X 2  X
+XXXXXXXXXXX
+X 3  X 4  X
+XXXXXXXXXXX
+
+consider square 4
+if 4.north and 4.west are both true:
+    if square row-1, col-1 doesn't exist or
+    1.south is false and
+    1.east is false
+    we draw a L"┌"
+
+if 1.south is true
+
+we draw L"┌" if:
+4.north and 4.south and not 3.north and not 2.west
+
+we draw '┬' if:
+4.north and 4.south and 3.north and not 2.west
+
+we draw '├'if:
+4.north and 4.south and 2.west and not 3.north
+
+we draw '┼' if:
+4. north and 4.south and 3.north and 2.west
+
+We actually have 16 states to consider.
+For the current grid square we have north and west states to consider
+along with left.north and above.west.
+
+flags.north  flags.west  left.north  above.west
+
+n w l a
+0 0 0 0 : L" ",
+0 0 0 1 : L" ",
+0 0 1 0 : L" ",
+0 0 1 1 : L"┘",  // 2518
+0 1 0 0 : L"│",  // 2502
+0 1 0 1 : L"│",  // 2502
+0 1 1 0 : L"┐",  // 2510
+0 1 1 1 : L"┤",  // 2524
+1 0 0 0 : L"─",  // 2500
+1 0 0 1 : L"└",  // 2514
+1 0 1 0 : L"─",  // 2500
+1 0 1 1 : L"┴",  // 2534
+1 1 0 0 : L"┌",  // 250C
+1 1 0 1 : L"├",  // 251C
+1 1 1 0 : L"┬",  // 252C
+1 1 1 1 : L"┼",  // 253C

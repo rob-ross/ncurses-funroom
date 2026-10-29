@@ -115,3 +115,14 @@ Game Development Stack Exchange
 How did early 2D first person RPGs render a "3D" maze?
 April 27, 2022 — Early 2D first-person RPGs that used tile-based movement and 90-degree turns likely rendered their '3D' maze views using pre-rende...
 
+
+Bit flags for grid squares in input file map2.txt:
+
+West North South East
+  0    1     0    0     4
+  0    1     0    1     5
+  0    1     1    0     6
+  1    0     0    1     9
+  1    1     0    0     C
+
+  1    1     1     1    F
