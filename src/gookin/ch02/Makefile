@@ -2,7 +2,7 @@
 
 # A few variables
 CC=clang
-CFLAGS=-std=c23
+CFLAGS=-std=c23 -g
 LIBS=-lncurses
 
 SRC_DIR=.
@@ -16,6 +16,9 @@ EXES = \
 	${EXE_DIR}/02-06_typewriter \
 	${EXE_DIR}/02-07_yourname \
 	${EXE_DIR}/02-08_sushi \
+
+.PRECIOUS: %.o
+.PHONY: all clean
 
 all:    ${EXES}
 

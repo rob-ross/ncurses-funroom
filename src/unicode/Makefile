@@ -2,10 +2,10 @@
 
 
 CC = clang
-CFLAGS = -std=c23
+CFLAGS = -std=c23 -g
 
 CXX = clang++
-CXXFLAGS = -std=c++23
+CXXFLAGS = -std=c++23 -g
 # Linux needs to link against -lncursesw
 LIBS =-lncurses
 
@@ -24,6 +24,7 @@ EXES = $(patsubst %,$(EXE_DIR)/%,$(STEMS))
 # Intermediate object files
 OBJS = $(patsubst %,%.o,$(STEMS))
 
+.PRECIOUS: %.o
 .PHONY: all clean
 
 # Default rule

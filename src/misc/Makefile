@@ -2,7 +2,7 @@
 
 # A few variables
 CC=clang
-CFLAGS=-std=c23
+CFLAGS=-std=c23 -g
 LIBS=-lncurses
 
 SRC_DIR=.
@@ -13,13 +13,19 @@ EXES = \
 	${EXE_DIR}/char_displayer \
 	${EXE_DIR}/manual_term_escapes \
 	${EXE_DIR}/simple_color \
+	${EXE_DIR}/temp_debug_map_file \
+
 
 
 DATA_FILES = \
 	${EXE_DIR}/Blocks.txt \
 	${EXE_DIR}/EastAsianWidth.txt \
+	${EXE_DIR}/map3.txt \
 
 all:    ${EXES}
+
+.PRECIOUS: %.o
+.PHONY: all clean
 
 # Specific prerequisite: char_displayer requires the data files
 ${EXE_DIR}/char_displayer: ${DATA_FILES}
@@ -43,4 +49,4 @@ ${EXE_DIR}/%.txt: ${SRC_DIR}/%.txt
 	${CC} ${CFLAGS} -o $@ -c $<
 
 clean:
-	@rm -f ${EXES} 	@rm -f ${EXES} ${DATA_FILES}
+	@rm -f ${EXES} ${DATA_FILES} *.o

@@ -6,7 +6,7 @@
 
 
 CC=clang++
-CFLAGS=-std=c++23
+CFLAGS=-std=c++23 -g
 LIBS=-lncurses
 
 SRC_DIR=.
@@ -17,6 +17,9 @@ EXES = \
 	${EXE_DIR}/simple_animate2 \
 	${EXE_DIR}/simple_animate3 \
 	${EXE_DIR}/simple_animate4 \
+
+.PRECIOUS: %.o
+.PHONY: all clean
 
 all:    ${EXES}
 

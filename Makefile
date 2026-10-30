@@ -26,4 +26,4 @@ clean:
 	cd ${SRC_DIR}/windows  && $(MAKE) clean
 	cd ${SRC_DIR}/gookin   && $(MAKE) clean
 	cd ${SRC_DIR}/color	   && $(MAKE) clean
-	cd ${SRC_DIR}/mazes	    && $(MAKE) clean
+	cd ${SRC_DIR}/mazes	   && $(MAKE) clean

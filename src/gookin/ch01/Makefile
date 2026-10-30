@@ -2,7 +2,7 @@
 
 # A few variables
 CC=clang
-CFLAGS=-std=c23
+CFLAGS=-std=c23 -g
 LIBS=-lncurses
 
 SRC_DIR=.
@@ -11,6 +11,9 @@ EXE_DIR=../../../out/gookin/ch01
 EXES = \
 	${EXE_DIR}/01-02_goodbye-final
 
+
+.PRECIOUS: %.o
+.PHONY: all clean
 
 all:    ${EXES}
 

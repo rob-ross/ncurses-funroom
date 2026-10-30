@@ -2,7 +2,7 @@
 
 CC = clang
 NCURSES_PREFIX ?= $(shell brew --prefix ncurses 2>/dev/null || echo /usr/local/opt/ncurses)
-CFLAGS = -std=c23 -I$(NCURSES_PREFIX)/include
+CFLAGS = -std=c23 -g -I$(NCURSES_PREFIX)/include
 LIBS = -L$(NCURSES_PREFIX)/lib -lncursesw
 
 
@@ -31,6 +31,7 @@ EXES = $(patsubst $(SRC_DIR)/%.c,$(EXE_DIR)/%,$(SRCS))
 # Intermediate object files
 OBJS = $(patsubst $(SRC_DIR)/%.c,%.o,$(SRCS))
 
+.PRECIOUS: %.o
 .PHONY: all clean
 
 all: ${EXES}

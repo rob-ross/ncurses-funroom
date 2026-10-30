@@ -4,7 +4,7 @@
 
 
 CC=clang++
-CFLAGS=-std=c++23
+CFLAGS=-std=c++23 -g
 LIBS=-lncurses
 
 SRC_DIR=.
@@ -19,6 +19,9 @@ EXES = \
 # the next line doesn't work because it gets parsed as "window1.cpp, window2.cpp,..." instead of
 # "window1, window2, ..."
 #	${EXE_DIR}/$(wildcard window*) \
+
+.PRECIOUS: %.o
+.PHONY: all clean
 
 all:    ${EXES}
 

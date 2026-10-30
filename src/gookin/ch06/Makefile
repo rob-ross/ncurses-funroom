@@ -1,7 +1,7 @@
 # Makefile for misc .c src Files
 
 CC = clang
-CFLAGS = -std=c23
+CFLAGS = -std=c23 -g
 LIBS = -lncurses
 
 SRC_DIR = .
@@ -16,6 +16,7 @@ EXES = $(patsubst $(SRC_DIR)/%.c,$(EXE_DIR)/%,$(SRCS))
 # Intermediate object files
 OBJS = $(patsubst $(SRC_DIR)/%.c,%.o,$(SRCS))
 
+.PRECIOUS: %.o
 .PHONY: all clean
 
 all: ${EXES}
