@@ -40,6 +40,10 @@ typedef struct {
     int y;
 } Coord;
 
+// temp globals for now, initialized by map loader
+Coord start_location;
+Coord end_location;
+
 typedef struct {
     Coord pos;
     Direction dir;
@@ -62,9 +66,9 @@ typedef enum : unsigned char {
     WF_EAST  = 1u,
 
 } WallFlags;
+
 // Models a map as a 2D array of gridsquares of equal size.
 // Each gridsquare is a bit field containing the location of any of 4 walls surrounding the square
-
 typedef struct {
     int rows;
     int cols;
@@ -88,7 +92,6 @@ WallRect depth_rects[4] = {
 
 // Global Game State
 Map game_map;
-// Map2 game_map3;
 
 Player player;
 int game_running = 1;
@@ -200,6 +203,38 @@ void flush_buffer_to_screen(int start_x, int start_y) {
 }
 
 
+// make sure all flags are consistent with adjoining cells
+bool validate_model(Map * gm) {
+    bool errs_found = false;
+    for (int row = 0; row < gm->rows; ++row) {
+        printf("Row %d: ", row);
+        for (int col = 0; col < gm->cols; ++col) {
+            WallFlags flags = gm->walls[row][col];
+            //West/East check
+            if ( col > 0 ) {
+                WallFlags left_flags = gm->walls[row][col-1];
+                if ( !(flags & WF_WEST) != !(left_flags & WF_EAST)) {
+                    printf("col:%d: W/E mismatch, with col:%d, ", col, col -1 );
+                    errs_found = true;
+                }
+            }
+
+            //North/South check
+            if (row > 0) {
+                WallFlags above_flags = gm->walls[row-1][col];
+                if ( !(flags & WF_NORTH) != !(above_flags & WF_SOUTH)) {
+                    printf("col:%d: N/S mismatch with row:%d, col%d, ", col, row-1, col);
+                    errs_found = true;
+                }
+            }
+
+        }
+        printf("\n");
+    }
+    fflush(stdout);
+    return errs_found;
+}
+
 // This version loads the data as bit fields for each map coordinate.
 // Flags indicate walls in the N, E, S, or W of the grid square.
 // Each character is a hex nibble 0-F. This can be expanded as needed by any printable ASCII range, line 0-Z, etc.
@@ -223,9 +258,18 @@ int load_map2(const char *filename) {
         if (c > game_map.cols) game_map.cols = c;
         game_map.rows++;
     }
+
+    // useful utility to keep around
+    // validate_model(&game_map);
+
     // todo we're currently hardcoding the entrance, exit for this map file
-    player.pos.x = player.pos.y = 0;
+    start_location = (Coord){};
+
+    player.pos = start_location;
     player.dir = DIR_NORTH;
+
+    end_location.x = game_map.cols - 1;
+    end_location.y = game_map.rows - 1;
 
     fclose(file);
     return 1;
@@ -237,18 +281,18 @@ char get_tile_at(Coord coord) {
     return game_map.walls[coord.y][coord.x];
 }
 
-bool player_can_move(Player p, Map * gm, Coord target, Direction dir) {
+bool player_can_move(Player p, Map * gm, Coord target, WallFlags dir) {
     if (target.x < 0 || target.x >= gm->cols || target.y < 0 || target.y >= gm->rows) return false;
     WallFlags flags = gm->walls[p.pos.y][p.pos.x];
 
-    switch (player.dir) {
-        case DIR_SOUTH: return !(flags & WF_SOUTH);
+    switch (dir) {
+        case WF_SOUTH: return !(flags & WF_SOUTH);
             break;
-        case DIR_NORTH: return !(flags & WF_NORTH);
+        case WF_NORTH: return !(flags & WF_NORTH);
             break;
-        case DIR_EAST:  return !(flags & WF_EAST);
+        case WF_EAST:  return !(flags & WF_EAST);
             break;
-        case DIR_WEST:  return !(flags & WF_WEST);
+        case WF_WEST:  return !(flags & WF_WEST);
             break;
     }
 
@@ -293,24 +337,36 @@ void turn_player(int rotation) { player.dir = (player.dir + rotation + 4) % 4; }
 
 void move_player(int step) {
     int dx = 0, dy = 0;
+    WallFlags check_wall = {};
+
     switch (player.dir) {
-        case DIR_NORTH: dy = -step;
+        case DIR_NORTH:
+            dy = -step;
+            check_wall = dy < 0 ? WF_NORTH : WF_SOUTH;
             break;
-        case DIR_SOUTH: dy = step;
+        case DIR_SOUTH:
+            dy = step;
+            check_wall = dy < 0 ? WF_NORTH : WF_SOUTH;
             break;
-        case DIR_EAST: dx = step;
+        case DIR_EAST:
+            dx = step;
+            check_wall = dx < 0 ? WF_WEST : WF_EAST;
             break;
-        case DIR_WEST: dx = -step;
+        case DIR_WEST:
+            dx = -step;
+            check_wall = dx < 0 ? WF_WEST : WF_EAST;
             break;
     }
     Coord target = {player.pos.x + dx, player.pos.y + dy};
-    if (player_can_move(player, &game_map, target, player.dir)) {
+    if (player_can_move(player, &game_map, target, check_wall)) {
         player.pos = target;
-        // if target == end {
-        // do end code
-        //  player_won = 1;
-        //  game_running = 0;
-        //}
+        if (player.pos.x == end_location.x &&
+            player.pos.y == end_location.y )
+        {
+            // do end code
+            player_won = 1;
+            game_running = 0;
+        }
     }
 }
 
@@ -493,17 +549,55 @@ void render_2D_map2(Map * gm, int left_panel_x, int left_panel_y) {
     }
 
 
+    // Draw Player Avatar
+    // utf-8 implementation
+    char *utf8_avatars[4] = {"▲","▶","▼","◀"};
+    mvaddstr(
+        left_panel_y + player.pos.y * ( row_scale -1 ) + 1,
+        left_panel_x + (player.pos.x * ( col_scale - 1 )) + 2,
+        utf8_avatars[player.dir]
+    );
+
+    mvaddwstr();
+
+    // Draw Player Avatar
+    // Wide-Char implementation
+
+    /*// const uint32_t avatar_unicode[] = { L'▲', L'▶', L'▼', L'◀'};
+
+    const cchar_t new_avatar_chars[] = {
+        { .chars = L'▲'},
+         { .chars = L'▶'},
+        { .chars = L'▼'},
+        { .chars = L'◀'}
+    };
+    mvadd_wch(
+        left_panel_y + player.pos.y * ( row_scale -1 ) + 1,
+        left_panel_x + (player.pos.x * ( col_scale - 1 )) + 2,
+        &new_avatar_chars[player.dir]
+    );*/
+
+    // Draw Player Avatar
+    // ASCII Char Implementation
+    /*
+    char avatars[] = {'^', '>', 'v', '<' };
+    mvaddch(
+        left_panel_y + player.pos.y * ( row_scale -1 ) + 1,
+        left_panel_x + (player.pos.x * ( col_scale - 1 )) + 2,
+        avatars[player.dir]
+    );
+    */
 
 
 
-    char avatars[] = {'^', '>', 'v', '<'};
-    mvaddch(left_panel_y + player.pos.y*row_scale + 1, left_panel_x + (player.pos.x * col_scale) + 2, avatars[player.dir]);
 
-    //todo debug
-    //hard coding E for now as bottom right map square
-    int max_rows, max_cols;
-    getmaxyx(stdscr, max_rows, max_cols);
-    mvaddch(left_panel_y + (gm->rows - 1) * (row_scale -1) + 1, left_panel_x +  (gm->cols -1) * (col_scale - 1) + 2, 'E');
+    const char *taco =  "🌮";  // For target end position
+    mvaddstr(
+        left_panel_y +  (end_location.y) * (row_scale - 1 ) + 1,
+        left_panel_x +  (end_location.x) * (col_scale - 1 ) + 2,
+        taco
+    );
+
 }
 
 void render_3D_view(int right_panel_x, int viewport_y) {
@@ -601,10 +695,12 @@ void render_game(Map * gm) {
 int main() {
     setlocale(LC_ALL, ""); // CRITICAL: Tell C runtime program system to unpack wide character sets
 
+
     if (!load_map2("map3.txt")) {
         printf("Error: Could not open map2.txt.\n");
         return 1;
     }
+
     initscr();
     cbreak();
     noecho();
