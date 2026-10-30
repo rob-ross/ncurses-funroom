@@ -351,7 +351,7 @@ void render_2D_map(int left_panel_x) {
 
 #define HAS_FLAGS(val, mask) (((val) & (mask)) == (mask))
 
-constexpr wint_t JOINERS_MAP[16][2] = {
+constexpr wint_t JOINERS_LOOKUP_MAP[16][2] = {
     { L' ', L'\0' },
     { L' ', L'\0' },
     { L' ', L'\0' },
@@ -372,7 +372,7 @@ constexpr wint_t JOINERS_MAP[16][2] = {
 
 const wint_t * get_joiner_wstr(unsigned index) {
     assert( index <= 15 );
-    return JOINERS_MAP[index];
+    return JOINERS_LOOKUP_MAP[index];
 }
 
 const wint_t *  get_joiner_for_flags(bool north, bool west, bool left_north, bool above_west) {
@@ -385,6 +385,11 @@ const wint_t *  get_joiner_for_flags(bool north, bool west, bool left_north, boo
 }
 
 void render_2D_map2(Map2 * gm, int left_panel_x, int left_panel_y) {
+    // in the Map model, adjacent cells share a common wall. I.e, the East wall of a cell will have the
+    // same value as the West wall of the cell to the right. We use this to optimize drawing by only
+    // processing the North and West walls in the main rendering loop, and dealing with the last row
+    // and last columns separately.
+    //
     // PANEL A: 2D Minimap Overhead with doubled horizontal terminal cells to make grid more square.
     // We now have to draw the borders around each cell, so that's 3 cells wide for left-cell-right
     // and three cells tall for top-cell-right. These may end up looking like a rectangle and not a square
@@ -412,12 +417,12 @@ void render_2D_map2(Map2 * gm, int left_panel_x, int left_panel_y) {
             refresh();
 
             if (flags & WF_NORTH) {
-                for (int i = 0; i < col_scale ; ++i) {
+                for (int i = 0; i < col_scale - 1 ; ++i) {
                     mvaddwstr(screen_y, screen_x+i, L"\u2500");
                 }
             }
             if (flags & WF_WEST) {
-                for (int i = 0; i < row_scale ; ++i) {
+                for (int i = 0; i < row_scale - 1 ; ++i) {
                     mvaddwstr(screen_y + i, screen_x , L"\u2502");
                 }
             }
@@ -434,7 +439,7 @@ void render_2D_map2(Map2 * gm, int left_panel_x, int left_panel_y) {
             if ( y == gm->rows - 1 ) {
                 // we have to render the south edges
                 if (flags & WF_SOUTH) {
-                    for (int i = 0; i < col_scale; ++i) {
+                    for (int i = 0; i < col_scale - 1; ++i) {
                         mvaddwstr(screen_y + row_scale - 1, screen_x+i, L"\u2500");
                     }
                 }
@@ -451,20 +456,30 @@ void render_2D_map2(Map2 * gm, int left_panel_x, int left_panel_y) {
                 // last grid square in row
                 // we have to render the east edges
                 if (flags & WF_EAST) {
-                    for (int i = 0; i < row_scale; ++i) {
+                    for (int i = 1; i < row_scale; ++i) {
                         mvaddwstr(screen_y + i, screen_x + col_scale - 1 , L"\u2502");
                     }
                 }
                 //joiners
+                // top joiner
                 joiner_str = get_joiner_for_flags(
                 0, flags & WF_EAST, flags & WF_NORTH, 0  );
                 mvaddwstr(screen_y, screen_x + col_scale - 1, joiner_str);
+                // bottom joiner
+                WallFlags below_flags  = (y <= 0 ) ? 0 : gm->walls[y+1][x];
+
+                joiner_str = get_joiner_for_flags(
+                0, below_flags & WF_EAST, flags & WF_SOUTH, flags & WF_EAST  );
+                mvaddwstr(screen_y + row_scale - 1, screen_x + col_scale - 1, joiner_str);
+                getch();
 
                 // last column of last row
                 if ( y == gm->rows - 1 ) {
+                    // top joiner
                     joiner_str = get_joiner_for_flags(
                     0, flags & WF_EAST, flags & WF_NORTH, above_flags & WF_EAST  );
                     mvaddwstr(screen_y, screen_x + col_scale - 1, joiner_str);
+                    // bottom joiner
                     joiner_str = get_joiner_for_flags(
                     0, 0, flags & WF_SOUTH, flags & WF_EAST  );
                     mvaddwstr(screen_y + row_scale - 1, screen_x + col_scale - 1, joiner_str);
