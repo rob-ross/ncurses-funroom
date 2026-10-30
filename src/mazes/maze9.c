@@ -558,8 +558,6 @@ void render_2D_map2(Map * gm, int left_panel_x, int left_panel_y) {
         utf8_avatars[player.dir]
     );
 
-    mvaddwstr();
-
     // Draw Player Avatar
     // Wide-Char implementation
 
