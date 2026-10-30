@@ -18,7 +18,9 @@ EXES = \
 	${EXE_DIR}/simple_animate3 \
 	${EXE_DIR}/simple_animate4 \
 
-.PRECIOUS: %.o
+OBJS = $(patsubst ${EXE_DIR}/%,${EXE_DIR}/%.o,${EXES})
+
+.PRECIOUS: ${EXE_DIR}/%.o
 .PHONY: all clean
 
 all:    ${EXES}
@@ -29,16 +31,12 @@ ${EXE_DIR}:
 	mkdir -p ${EXE_DIR}
 
 # for every item in EXES, this rule runs to make it. Depends on an object file with the same stem
-# $@ means "copy everything to the left of the colon"
-# $^ means "copy everything to the right of the colon"
-${EXE_DIR}/%: %.o | ${EXE_DIR}
+${EXE_DIR}/%: ${EXE_DIR}/%.o
 	${CC} -o $@ $< ${LIBS}
 
-
-
-# make object files, compile if needed, .c is the prerequisite for the compile recipie but doesn't require making
-%.o: ${SRC_DIR}/%.cpp
+# make object files in EXE_DIR
+${EXE_DIR}/%.o: ${SRC_DIR}/%.cpp | ${EXE_DIR}
 	${CC} ${CFLAGS} -o $@ -c $<
 
 clean:
-	@rm -f ${EXES} 	@rm -f ${EXES}
+	@rm -f ${EXES} ${OBJS} *.o

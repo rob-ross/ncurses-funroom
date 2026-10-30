@@ -16,11 +16,9 @@ EXES = \
 	${EXE_DIR}/resize_handling \
 	${EXE_DIR}/resize_newwin \
 
-# the next line doesn't work because it gets parsed as "window1.cpp, window2.cpp,..." instead of
-# "window1, window2, ..."
-#	${EXE_DIR}/$(wildcard window*) \
+OBJS = $(patsubst ${EXE_DIR}/%,${EXE_DIR}/%.o,${EXES})
 
-.PRECIOUS: %.o
+.PRECIOUS: ${EXE_DIR}/%.o
 .PHONY: all clean
 
 all:    ${EXES}
@@ -36,11 +34,9 @@ ${EXE_DIR}:
 ${EXE_DIR}/%: %.o | ${EXE_DIR}
 	${CC} -o $@ $< ${LIBS}
 
-
-
-# make object files, compile if needed, .c is the prerequisite for the compile recipie but doesn't require making
-%.o: ${SRC_DIR}/%.cpp
+# make object files in EXE_DIR
+${EXE_DIR}/%.o: ${SRC_DIR}/%.cpp | ${EXE_DIR}
 	${CC} ${CFLAGS} -o $@ -c $<
 
 clean:
-	@rm -f ${EXES} 	@rm -f ${EXES}
+	@rm -f ${EXES} ${OBJS} *.o

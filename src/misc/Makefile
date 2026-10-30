@@ -22,9 +22,11 @@ DATA_FILES = \
 	${EXE_DIR}/EastAsianWidth.txt \
 	${EXE_DIR}/map3.txt \
 
+OBJS = $(patsubst ${EXE_DIR}/%,${EXE_DIR}/%.o,${EXES})
+
 all:    ${EXES}
 
-.PRECIOUS: %.o
+.PRECIOUS: ${EXE_DIR}/%.o
 .PHONY: all clean
 
 # Specific prerequisite: char_displayer requires the data files
@@ -35,18 +37,16 @@ ${EXE_DIR}:
 	mkdir -p ${EXE_DIR}
 
 # for every item in EXES, this rule runs to make it. Depends on an object file with the same stem
-# $@ means "copy everything to the left of the colon"
-# $^ means "copy everything to the right of the colon"
-${EXE_DIR}/%: %.o | ${EXE_DIR}
+${EXE_DIR}/%: ${EXE_DIR}/%.o
 	${CC} -o $@ $< ${LIBS}
 
 # Rule to copy .txt data files to EXE_DIR
-${EXE_DIR}/%.txt: ${SRC_DIR}/%.txt
+${EXE_DIR}/%.txt: ${SRC_DIR}/%.txt | ${EXE_DIR}
 	cp $< $@
 
-# make object files, compile if needed, .c is the prerequisite for the compile recipie but doesn't require making
-%.o: ${SRC_DIR}/%.c
+# make object files in EXE_DIR
+${EXE_DIR}/%.o: ${SRC_DIR}/%.c | ${EXE_DIR}
 	${CC} ${CFLAGS} -o $@ -c $<
 
 clean:
-	@rm -f ${EXES} ${DATA_FILES} *.o
+	@rm -f ${EXES} ${DATA_FILES} ${OBJS} *.o

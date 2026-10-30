@@ -21,10 +21,10 @@ STEMS = $(notdir $(basename $(SRCS)))
 # Derive the executable targets in EXE_DIR matching each source file stem
 EXES = $(patsubst %,$(EXE_DIR)/%,$(STEMS))
 
-# Intermediate object files
-OBJS = $(patsubst %,%.o,$(STEMS))
+# Intermediate object files in EXE_DIR
+OBJS = $(patsubst %,$(EXE_DIR)/%.o,$(STEMS))
 
-.PRECIOUS: %.o
+.PRECIOUS: ${EXE_DIR}/%.o
 .PHONY: all clean
 
 # Default rule
@@ -37,18 +37,18 @@ ${EXE_DIR}:
 
 
 # Rule to link object files into executable binary
-${EXE_DIR}/%: %.o | ${EXE_DIR}
+${EXE_DIR}/%: ${EXE_DIR}/%.o
 	${CXX} ${CXXFLAGS} -o $@ $< ${LIBS}
 
-# Rule to compile .cpp source files into .o object files
-%.o: ${SRC_DIR}/%.cpp
+# Rule to compile .cpp source files into .o object files in EXE_DIR
+${EXE_DIR}/%.o: ${SRC_DIR}/%.cpp | ${EXE_DIR}
 	${CXX} ${CXXFLAGS} -c -o $@ $<
 
-# Rule to compile each .c file into a .o file
-%.o: ${SRC_DIR}/%.c
+# Rule to compile each .c file into a .o file in EXE_DIR
+${EXE_DIR}/%.o: ${SRC_DIR}/%.c | ${EXE_DIR}
 	${CC} ${CFLAGS} -o $@ -c $<
 
 # Clean up build artifacts
 clean:
-	@rm -f *.o ${EXES}
+	@rm -f ${OBJS} ${EXES} *.o
 

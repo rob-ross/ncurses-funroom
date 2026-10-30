@@ -21,7 +21,6 @@ clean:
 	cd ${SRC_DIR}/ch04 	&& $(MAKE) clean
 	cd ${SRC_DIR}/ch05 	&& $(MAKE) clean
 	cd ${SRC_DIR}/ch06 	&& $(MAKE) clean
-	cd ${SRC_DIR}/ch06 	&& $(MAKE) clean
 	cd ${SRC_DIR}/ch07 	&& $(MAKE) clean
 	cd ${SRC_DIR}/ch08 	&& $(MAKE) clean
 
