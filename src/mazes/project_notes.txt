@@ -134,8 +134,8 @@ Rules for creating frustum (D is depth from camera POV):
     D3 : [ L3 ]  [ C3 ]  [ R3 ]    <-- 3 Tiles Ahead
     D2 : [ L2 ]  [ C2 ]  [ R2 ]    <-- 2 Tiles Ahead
     D1 : [ L1 ]  [ C1 ]  [ R1 ]    <-- 1 Tile Ahead
-    D0 : [ L0 ]  [PLAYER][ R0 ]    <-- Current row left/right walls
-
+    D0 : [ L0 ]  [ C0 ]  [ R0 ]    <-- Current row left/right walls
+                  player
     For center:
     1. start at D (depth) 0.
     2. if player.north == 1 set C1 = '#' and stop

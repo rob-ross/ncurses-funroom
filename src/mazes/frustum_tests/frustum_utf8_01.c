@@ -42,7 +42,7 @@
 #define COLOR_WALL 1
 #define COLOR_TEXT 2
 
-
+// in this order to make it easy to update position modulo 4
 typedef enum { DIR_NORTH = 0, DIR_EAST = 1, DIR_SOUTH = 2, DIR_WEST = 3 } Direction;
 
 typedef struct {
@@ -50,9 +50,16 @@ typedef struct {
     int y;
 } Coord;
 
-// temp globals for now, initialized by map loader
-Coord start_location;
-Coord end_location;
+//Bit flag masks to signify presence of corresponding wall in a map cell.
+// walls encoded as W S E N
+
+typedef enum : unsigned char {
+    WF_NORTH = 1u << 0, // bit 0 (1)
+    WF_EAST  = 1u << 1, // bit 1 (2)
+    WF_SOUTH = 1u << 2, // bit 2 (4)
+    WF_WEST  = 1u << 3, // bit 3 (8)
+} WallFlags;
+
 
 typedef struct {
     Coord pos;
@@ -63,19 +70,11 @@ typedef struct {
     char cells[4][3];
 } ViewFrustum;
 
+// What walls are visible from the current POV
+typedef struct {
+    WallFlags walls[4][3];
+} ViewFrustum3;
 
-
-//Bit flag masks to signify presence of corresponding wall in a square.
-// Leftmost bit is for West, rightmost bit is for East, North and South are middle bits.
-// I chose this over a N,E,S,W encoding order because it's easier to mentally create
-// the right bitmask for a square with this visual model  W  N   S  E
-typedef enum : unsigned char {
-    WF_WEST  = 1u << 3,
-    WF_NORTH = 1u << 2,
-    WF_SOUTH = 1u << 1,
-    WF_EAST  = 1u,
-
-} WallFlags;
 
 // Models a map as a 2D array of gridsquares of equal size.
 // Each gridsquare is a bit field containing the location of any of 4 walls surrounding the square
@@ -92,6 +91,10 @@ typedef struct {
 
 typedef enum  { FS_LEFT = -1, FS_CENTER = 0, FS_RIGHT = 1 } FrustumSide;
 
+
+// temp globals for now, initialized by map loader
+Coord start_location;
+Coord end_location;
 
 // High-res pixel footprints scaled to fit beautifully inside the 80x80 matrix canvas
 WallRect depth_rects[4] = {
@@ -441,8 +444,10 @@ char get_tile_at2(Coord target, Direction dir, FrustumSide fs) {
     return (target_flags & target_mask) ? '#' : ' ';
 }
 
-char get_tile_at3(Coord target, Direction dir, FrustumSide fs) {
-    // if outside map return a space so nothing is rendered for that coordinate
+WallFlags get_walls_at3(Coord target, Direction dir, FrustumSide fs) {
+    // we look in the current cell for existing/visible walls
+    // When we face North, we're looking at the North wall
+
     if (target.x < 0 || target.x >= game_map.cols || target.y < 0 || target.y >= game_map.rows) return '#';
     WallFlags target_flags = game_map.walls[target.y][target.x];
     WallFlags target_mask = {};
@@ -450,67 +455,48 @@ char get_tile_at3(Coord target, Direction dir, FrustumSide fs) {
     switch (dir) {
         case DIR_NORTH:
         {
-            switch (fs) {
-                case FS_LEFT:
-                    target_mask = WF_EAST;
-                    break;
-                case FS_CENTER:
-                    target_mask = WF_NORTH;
-                    break;
-                case FS_RIGHT:
-                    target_mask = WF_WEST;
-                    break;
-            }
-            break;
-        }
-        case DIR_SOUTH:
-        {
-            switch (fs) {
-                case FS_LEFT:
-                    target_mask = WF_WEST;
-                    break;
-                case FS_CENTER:
-                    target_mask = WF_SOUTH;
-                    break;
-                case FS_RIGHT:
-                    target_mask = WF_EAST;
-                    break;
-            }
-            break;
-        }
-        case DIR_WEST:
-        {
-            switch (fs) {
-                case FS_LEFT:
-                    target_mask = WF_NORTH;
-                    break;
-                case FS_CENTER:
-                    target_mask = WF_WEST;
-                    break;
-                case FS_RIGHT:
-                    target_mask = WF_SOUTH;
-                    break;
-            }
-            break;
+            // for north there is a 1:1 correspondence between a target's walls and the frustum walls returned
+            return target_flags;
         }
         case DIR_EAST:
         {
-            switch (fs) {
-                case FS_LEFT:
-                    target_mask = WF_SOUTH;
-                    break;
-                case FS_CENTER:
-                    target_mask = WF_EAST;
-                    break;
-                case FS_RIGHT:
-                    target_mask = WF_NORTH;
-                    break;
-            }
-            break;
+            WallFlags f = {};
+            f |= WF_NORTH * (bool)(target_flags & WF_EAST);
+            f |= WF_EAST  * (bool)(target_flags & WF_SOUTH);
+            f |= WF_SOUTH * (bool)(target_flags & WF_WEST);
+            f |= WF_WEST  * (bool)(target_flags & WF_NORTH);
+            return f;
         }
+        case DIR_SOUTH:
+        {
+            // for south direction, all directions are flipped:
+            WallFlags f = {};
+            // pseudo code:
+            // f.north = target_flags.south
+            // f.east = target_flags.west
+            // f.south = target_flags.north
+            // f.west = target_flags.east
+            f |= WF_NORTH * (bool)(target_flags & WF_SOUTH);
+            f |= WF_EAST  * (bool)(target_flags & WF_WEST);
+            f |= WF_SOUTH * (bool)(target_flags & WF_NORTH);
+            f |= WF_WEST  * (bool)(target_flags & WF_EAST);
+            return f;
+        }
+        case DIR_WEST:
+        {
+            // for west direction, directions would be turned 90 degrees anti-clockwise,
+            // IF the wall flags were encoded as N E S W, like Direction?
+            WallFlags f = {};
+            f |= WF_NORTH * (bool)(target_flags & WF_WEST);
+            f |= WF_EAST  * (bool)(target_flags & WF_NORTH);
+            f |= WF_SOUTH * (bool)(target_flags & WF_EAST);
+            f |= WF_WEST  * (bool)(target_flags & WF_SOUTH);
+            return f;
+        }
+
     }
 
-    return (target_flags & target_mask) ? '#' : ' ';
+    return 255; // error
 }
 
 ViewFrustum update_frustum2() {
@@ -558,6 +544,56 @@ ViewFrustum update_frustum2() {
     return f;
 }
 
+ViewFrustum3 update_frustum3() {
+    ViewFrustum3 f;
+
+    // we look in the current cell for existing/visible walls
+    // When we face North, we're looking at the North wall
+    //
+    // first we capture all the walls that exist in our field of view
+    int fx = 0, fy = 0, rx = 0, ry = 0;
+    switch (player.dir) {
+        case DIR_NORTH:
+            fx = 0;
+            fy = -1;
+            rx = 1;
+            ry = 0;
+            break;
+        case DIR_EAST:
+            fx = 1;
+            fy = 0;
+            rx = 0;
+            ry = 1;
+            break;
+        case DIR_SOUTH:
+            fx = 0;
+            fy = 1;
+            rx = -1;
+            ry = 0;
+            break;
+        case DIR_WEST:
+            fx = -1;
+            fy = 0;
+            rx = 0;
+            ry = -1;
+            break;
+    }
+
+    for (int depth = 0; depth <= 3; depth++) {
+        for (FrustumSide offset = FS_LEFT; offset <= FS_RIGHT; offset++) {
+            // when offset == -1, we're looking Left
+            // when offset ==  0, we're looking center
+            // when offset ==  1, we're looking right
+            Coord target = {
+                player.pos.x + (fx * depth) + (rx * offset),
+                player.pos.y + (fy * depth) + (ry * offset)
+            };
+            f.walls[depth][offset + 1] = get_walls_at3(target, player.dir, offset);
+        }
+    }
+    return f;
+}
+
 void render_3D_view(int right_panel_x, int viewport_y) {
         // PANEL B: Virtual Interface Framework
 
@@ -566,6 +602,19 @@ void render_3D_view(int right_panel_x, int viewport_y) {
 
 
     mvprintw(0, right_panel_x, "--- 3D BRAILLE VECTOR ENGINE ---");
+
+    // try drawing a tight border around the 3D view canvas
+    // ----------------------------------------------------
+    int result = {};
+    move(viewport_y-1, right_panel_x-1);
+    result = hline('-', VIEW_W + 2);   // top line
+    result = vline('|', VIEW_H + 2);   // left line
+    move(viewport_y  + VIEW_H + 1, right_panel_x -1 );
+    result = hline('-', VIEW_W + 2);   // bottom line
+    move(viewport_y-1, right_panel_x + 1 + VIEW_W);
+    result = vline('|', VIEW_H + 2);   // right line
+
+
 
     // --- HIGH-RESOLUTION RASTERIZATION DRAW PIPELINE ---
 
@@ -893,7 +942,7 @@ int main() {
         }
     }
 
-    if (!load_map2("map3.txt")) {
+    if (!load_map2("fmap1.txt")) {
         printf("Error: Could not open map2.txt.\n");
         return 1;
     }
