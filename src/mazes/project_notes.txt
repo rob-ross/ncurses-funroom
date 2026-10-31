@@ -108,8 +108,8 @@ void draw_wall_face(WallSegment w) {
 
 
 
-By switching on and off these pre-determined segments based on your 11-cell grid check, you will get a lightning-fast, perfectly accurate 1980s pseudo-3D viewport that fits right into an standard text terminal!
-Would you like me to help write out the basic grid coordinate lookup function that translates the player's location and direction array indexes into this relative map frame?
+By switching on and off these pre-determined segments based on your 11-cell grid check, you will get a lightning-fast,
+perfectly accurate 1980s pseudo-3D viewport that fits right into an standard text terminal!
 •
 Game Development Stack Exchange
 How did early 2D first person RPGs render a "3D" maze?
@@ -126,3 +126,27 @@ West North South East
   1    1     0    0     C
 
   1    1     1     1    F
+
+
+Rules for creating frustum (D is depth from camera POV):
+    Direction: ▲ NORTH
+
+    D3 : [ L3 ]  [ C3 ]  [ R3 ]    <-- 3 Tiles Ahead
+    D2 : [ L2 ]  [ C2 ]  [ R2 ]    <-- 2 Tiles Ahead
+    D1 : [ L1 ]  [ C1 ]  [ R1 ]    <-- 1 Tile Ahead
+    D0 : [ L0 ]  [PLAYER][ R0 ]    <-- Current row left/right walls
+
+    For center:
+    1. start at D (depth) 0.
+    2. if player.north == 1 set C1 = '#' and stop
+    3. else if C1.north ==1 set C2 = '#' and stop
+    4. else if C2.north == 1 set C3 = '#'
+    5. end center
+
+    For Left:
+    1. start at 0
+    2. if Player.west == 1 set L0 = '#' (or '|' to signify N/S wall
+    3. if C1 == '#', set L1 = '-' if L0.north == 1 else L1 == ' '   stop
+    4. else if C2 == '#':
+        A. if L1.
+
