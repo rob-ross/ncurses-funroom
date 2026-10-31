@@ -1,19 +1,16 @@
-//  maze9.c
+//  maze10.c
 //
 //  Created by Rob Ross on 10/28/26.
 //
 //  Copyright (c) 2026.  All rights reserved.
 
-// modified from maze 8 to refactor 2D map rendering to handle end columns and last row separately
-// to simplify the main loop logic.
+// modified from maze9 to update the 3D rendering code based on new model
 
 #define _XOPEN_SOURCE_EXTENDED 1 // Enforce POSIX and wide-character terminal extensions
-#include <assert.h>
-#include <wchar.h>
-#include <wctype.h> // Wide character classification and conversion
 #include <ncursesw/ncurses.h>
 
 
+#include <assert.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,13 +22,15 @@
 #define VIEW_W 40
 #define VIEW_H 20
 
+// High-Resolution Sub-Pixel Braille Canvas Map (2x4 pixels per text cell)
+#define PIXEL_W (VIEW_W * 2) // 80 Pixels wide
+#define PIXEL_H (VIEW_H * 4) // 80 Pixels high
+
+
 // Define unique index handles for color configurations
 #define COLOR_WALL 1
 #define COLOR_TEXT 2
 
-// High-Resolution Sub-Pixel Braille Canvas Map (2x4 pixels per text cell)
-#define PIXEL_W (VIEW_W * 2) // 80 Pixels wide
-#define PIXEL_H (VIEW_H * 4) // 80 Pixels high
 
 typedef enum { DIR_NORTH = 0, DIR_EAST = 1, DIR_SOUTH = 2, DIR_WEST = 3 } Direction;
 
@@ -213,7 +212,7 @@ bool validate_model(Map * gm) {
             //West/East check
             if ( col > 0 ) {
                 WallFlags left_flags = gm->walls[row][col-1];
-                if ( !(flags & WF_WEST) != !(left_flags & WF_EAST)) {
+                if ( (bool)(flags & WF_WEST) != (bool)(left_flags & WF_EAST)) {
                     printf("col:%d: W/E mismatch, with col:%d, ", col, col -1 );
                     errs_found = true;
                 }
@@ -222,7 +221,7 @@ bool validate_model(Map * gm) {
             //North/South check
             if (row > 0) {
                 WallFlags above_flags = gm->walls[row-1][col];
-                if ( !(flags & WF_NORTH) != !(above_flags & WF_SOUTH)) {
+                if ( (bool)(flags & WF_NORTH) != (bool)(above_flags & WF_SOUTH)) {
                     printf("col:%d: N/S mismatch with row:%d, col%d, ", col, row-1, col);
                     errs_found = true;
                 }
@@ -281,6 +280,155 @@ char get_tile_at(Coord coord) {
     return game_map.walls[coord.y][coord.x];
 }
 
+typedef enum  { FS_LEFT = -1, FS_CENTER = 0, FS_RIGHT = 1 } FrustumSide;
+
+//return '#' for a wall and ' ' for empty space
+char get_tile_at2(Coord target, Direction dir, FrustumSide fs) {
+    // if outside map return a space so nothing is rendered for that coordinate
+    if (target.x < 0 || target.x >= game_map.cols || target.y < 0 || target.y >= game_map.rows) return '#';
+    WallFlags target_flags = game_map.walls[target.y][target.x];
+    WallFlags target_mask = {};
+
+    switch (dir) {
+        case DIR_NORTH:
+        {
+            switch (fs) {
+                case FS_LEFT:
+                    target_mask = WF_EAST;
+                    break;
+                case FS_CENTER:
+                    target_mask = WF_SOUTH;
+                    break;
+                case FS_RIGHT:
+                    target_mask = WF_WEST;
+                    break;
+            }
+            break;
+        }
+        case DIR_SOUTH:
+        {
+            switch (fs) {
+                case FS_LEFT:
+                    target_mask = WF_WEST;
+                    break;
+                case FS_CENTER:
+                    target_mask = WF_NORTH;
+                    break;
+                case FS_RIGHT:
+                    target_mask = WF_EAST;
+                    break;
+            }
+            break;
+        }
+        case DIR_WEST:
+        {
+            switch (fs) {
+                case FS_LEFT:
+                    target_mask = WF_NORTH;
+                    break;
+                case FS_CENTER:
+                    target_mask = WF_EAST;
+                    break;
+                case FS_RIGHT:
+                    target_mask = WF_SOUTH;
+                    break;
+            }
+            break;
+        }
+        case DIR_EAST:
+        {
+            switch (fs) {
+                case FS_LEFT:
+                    target_mask = WF_SOUTH;
+                    break;
+                case FS_CENTER:
+                    target_mask = WF_WEST;
+                    break;
+                case FS_RIGHT:
+                    target_mask = WF_NORTH;
+                    break;
+            }
+            break;
+        }
+    }
+
+    return (target_flags & target_mask) ? '#' : ' ';
+}
+
+char get_tile_at3(Coord target, Direction dir, FrustumSide fs) {
+    // if outside map return a space so nothing is rendered for that coordinate
+    if (target.x < 0 || target.x >= game_map.cols || target.y < 0 || target.y >= game_map.rows) return '#';
+    WallFlags target_flags = game_map.walls[target.y][target.x];
+    WallFlags target_mask = {};
+
+    switch (dir) {
+        case DIR_NORTH:
+        {
+            switch (fs) {
+                case FS_LEFT:
+                    target_mask = WF_EAST;
+                    break;
+                case FS_CENTER:
+                    target_mask = WF_NORTH;
+                    break;
+                case FS_RIGHT:
+                    target_mask = WF_WEST;
+                    break;
+            }
+            break;
+        }
+        case DIR_SOUTH:
+        {
+            switch (fs) {
+                case FS_LEFT:
+                    target_mask = WF_WEST;
+                    break;
+                case FS_CENTER:
+                    target_mask = WF_SOUTH;
+                    break;
+                case FS_RIGHT:
+                    target_mask = WF_EAST;
+                    break;
+            }
+            break;
+        }
+        case DIR_WEST:
+        {
+            switch (fs) {
+                case FS_LEFT:
+                    target_mask = WF_NORTH;
+                    break;
+                case FS_CENTER:
+                    target_mask = WF_WEST;
+                    break;
+                case FS_RIGHT:
+                    target_mask = WF_SOUTH;
+                    break;
+            }
+            break;
+        }
+        case DIR_EAST:
+        {
+            switch (fs) {
+                case FS_LEFT:
+                    target_mask = WF_SOUTH;
+                    break;
+                case FS_CENTER:
+                    target_mask = WF_EAST;
+                    break;
+                case FS_RIGHT:
+                    target_mask = WF_NORTH;
+                    break;
+            }
+            break;
+        }
+    }
+
+    return (target_flags & target_mask) ? '#' : ' ';
+}
+
+
+
 bool player_can_move(Player p, Map * gm, Coord target, WallFlags dir) {
     if (target.x < 0 || target.x >= gm->cols || target.y < 0 || target.y >= gm->rows) return false;
     WallFlags flags = gm->walls[p.pos.y][p.pos.x];
@@ -299,39 +447,53 @@ bool player_can_move(Player p, Map * gm, Coord target, WallFlags dir) {
     return false;
 }
 
-ViewFrustum update_frustum() {
+
+ViewFrustum update_frustum2() {
     ViewFrustum f;
     int fx = 0, fy = 0, rx = 0, ry = 0;
     switch (player.dir) {
-        case DIR_NORTH: fx = 0;
+        case DIR_NORTH:
+            fx = 0;
             fy = -1;
             rx = 1;
             ry = 0;
             break;
-        case DIR_EAST: fx = 1;
+        case DIR_EAST:
+            fx = 1;
             fy = 0;
             rx = 0;
             ry = 1;
             break;
-        case DIR_SOUTH: fx = 0;
+        case DIR_SOUTH:
+            fx = 0;
             fy = 1;
             rx = -1;
             ry = 0;
             break;
-        case DIR_WEST: fx = -1;
+        case DIR_WEST:
+            fx = -1;
             fy = 0;
             rx = 0;
             ry = -1;
             break;
     }
+
     for (int depth = 0; depth <= 3; depth++) {
-        for (int offset = -1; offset <= 1; offset++) {
-            Coord target = {player.pos.x + (fx * depth) + (rx * offset), player.pos.y + (fy * depth) + (ry * offset)};
-            f.cells[depth][offset + 1] = get_tile_at(target);
+        for (FrustumSide offset = FS_LEFT; offset <= FS_RIGHT; offset++) {
+            // when offset == -1, we're looking Left
+            // when offset ==  0, we're looking center
+            // when offset ==  1, we're looking right
+            Coord target = {
+                player.pos.x + (fx * depth) + (rx * offset),
+                player.pos.y + (fy * depth) + (ry * offset)
+            };
+            f.cells[depth][offset + 1] = get_tile_at2(target, player.dir, offset);
         }
     }
     return f;
 }
+
+
 
 void turn_player(int rotation) { player.dir = (player.dir + rotation + 4) % 4; }
 
@@ -370,34 +532,6 @@ void move_player(int step) {
     }
 }
 
-void render_2D_map(int left_panel_x) {
-
-    // PANEL A: 2D Minimap Overhead with doubled horizontal characters
-    for (int y = 0; y < game_map.rows; y++) {
-        for (int x = 0; x < game_map.cols; x++) {
-            char cell_char = game_map.walls[y][x];
-            int screen_x = left_panel_x + (x * 2);
-            if (cell_char == '#') {
-                // Combine space characters with the background color attribute
-                mvaddch(y, screen_x,     ' ' | COLOR_PAIR(COLOR_WALL));
-                mvaddch(y, screen_x + 1, ' ' | COLOR_PAIR(COLOR_WALL));
-            }
-            else if (cell_char == 'E') {
-                mvaddch(y, screen_x,     '[');
-                mvaddch(y, screen_x + 1, 'E');
-            }
-            else {
-                // Ensure paths use standard background colors
-                mvaddch(y, screen_x,     ' ' | COLOR_PAIR(COLOR_TEXT));
-                mvaddch(y, screen_x + 1, ' ' | COLOR_PAIR(COLOR_TEXT));
-            }
-        }
-    }
-    char avatars[] = {'^', '>', 'v', '<'};
-    mvaddch(player.pos.y, left_panel_x + (player.pos.x * 2) + 1, avatars[player.dir]);
-}
-
-#define HAS_FLAGS(val, mask) (((val) & (mask)) == (mask))
 
 /*
  *  The index for this lookup map is computed as follows:
@@ -601,7 +735,7 @@ void render_2D_map2(Map * gm, int left_panel_x, int left_panel_y) {
 void render_3D_view(int right_panel_x, int viewport_y) {
         // PANEL B: Virtual Interface Framework
 
-    ViewFrustum frustum = update_frustum();
+    ViewFrustum frustum = update_frustum2();
     clear_pixel_buffer(); // Fresh slate step for vector processing buffer canvas
 
 
@@ -646,6 +780,7 @@ void render_3D_view(int right_panel_x, int viewport_y) {
         clear_braille_sub_rect(depth_rects[1]);
         draw_braille_front_wall(depth_rects[1]);
     }
+
     // LAYER 0: Immediate walls flanking player coordinates
     if (frustum.cells[0][0] == '#') {
         draw_braille_side_wall(depth_rects[0], depth_rects[1], 1, 0);
@@ -657,6 +792,11 @@ void render_3D_view(int right_panel_x, int viewport_y) {
         draw_vector_line(depth_rects[0].x1, depth_rects[0].y0, depth_rects[0].x1, depth_rects[0].y1);
         draw_vector_line(depth_rects[1].x1, depth_rects[1].y0, depth_rects[1].x1, depth_rects[1].y1);
     }
+    // if (frustum.cells[0][1] == '#' || frustum.cells[0][1] == 'E') {
+    //     clear_braille_sub_rect(depth_rects[0]);
+    //     draw_braille_front_wall(depth_rects[0]);
+    // }
+
     // Convert vector high-res map down to the target display matrix location panels
     flush_buffer_to_screen(right_panel_x, viewport_y);
     if (frustum.cells[1][1] == 'E' || frustum.cells[2][1] == 'E' || frustum.cells[3][1] == 'E') {
@@ -670,7 +810,7 @@ void render_game(Map * gm) {
     int left_panel_x = 2;
     int left_panel_y = 2;
 
-    int right_panel_x = (gm->cols * 2) + 6;
+    int right_panel_x = (gm->cols * 5) + 6;
     int viewport_y = 2;
 
     // Panel A : 2D overview map
@@ -683,7 +823,7 @@ void render_game(Map * gm) {
     // }
 
     // PANEL B: Virtual Interface Framework
-    // render_3D_view(right_panel_x, viewport_y );
+    render_3D_view(right_panel_x, viewport_y );
 
     int footer_y = (gm->rows > VIEW_H + 4) ? gm->rows : VIEW_H + 4;
     mvprintw(footer_y + 1, 0, "Controls: UP/DOWN (Walk), LEFT/RIGHT (Turn). Press 'q' to quit.");
