@@ -13,15 +13,17 @@ EXE_DIR = ../../out/mazes
 #SRCS = $(wildcard $(SRC_DIR)/*.c)
 
 SRCS = \
-	${SRC_DIR}/maze1.c \
-	${SRC_DIR}/maze2.c \
-	${SRC_DIR}/maze3.c \
-	${SRC_DIR}/maze4.c \
-	${SRC_DIR}/maze5.c \
-	${SRC_DIR}/maze6.c \
-	${SRC_DIR}/maze7.c \
-	${SRC_DIR}/maze8.c \
-	${SRC_DIR}/maze9.c \
+	${SRC_DIR}/maze10.c \
+
+#	${SRC_DIR}/maze1.c \
+#	${SRC_DIR}/maze2.c \
+#	${SRC_DIR}/maze3.c \
+#	${SRC_DIR}/maze4.c \
+#	${SRC_DIR}/maze5.c \
+#	${SRC_DIR}/maze6.c \
+#	${SRC_DIR}/maze7.c \
+#	${SRC_DIR}/maze8.c \
+#	${SRC_DIR}/maze9.c \
 
 
 
