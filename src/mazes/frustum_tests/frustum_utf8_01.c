@@ -66,9 +66,6 @@ typedef struct {
     Direction dir;
 } Player;
 
-typedef struct {
-    char cells[4][3];
-} ViewFrustum;
 
 // What walls are visible from the current POV
 typedef struct {
@@ -89,19 +86,23 @@ typedef struct {
     int x0, y0, x1, y1;
 } WallRect;
 
-typedef enum  { FS_LEFT = -1, FS_CENTER = 0, FS_RIGHT = 1 } FrustumSide;
+typedef enum : int { FS_LEFT = 0, FS_CENTER = 1, FS_RIGHT = 2 } FrustumLane;
 
 
 // temp globals for now, initialized by map loader
 Coord start_location;
 Coord end_location;
 
-// High-res pixel footprints scaled to fit beautifully inside the 80x80 matrix canvas
-WallRect depth_rects[4] = {
-    {0, 0, 79, 79}, // Depth 0 (Canvas edge bounds)
-    {12, 12, 67, 67}, // Depth 1 (Close wall face layer)
-    {24, 24, 55, 55}, // Depth 2 (Mid-distance layer)
-    {32, 32, 47, 47} // Depth 3 (Far-distance layer)
+
+WallRect depth_rects[7] = {
+    {0, 0, PIXEL_H - 1, PIXEL_W - 1 },    // Depth 0 (Near camera plane)
+    {12, 12, 67, 67},  // Depth 1 (Boundary C0 / C1)
+    {24, 24, 55, 55},  // Depth 2 (Boundary C1 / C2)
+    {32, 32, 47, 47},  // Depth 3 (Boundary C2 / C3)
+    {36, 36, 43, 43},  // Depth 4 (Boundary C3 / C4)
+    {38, 38, 41, 41},  // Depth 5 (Boundary C4 / C5)
+    {39, 39, 40, 40},  // Depth 6 (Boundary C5 / C4)
+
 };
 
 
@@ -146,6 +147,12 @@ int player_won = 0;
 // The Virtual High-Resolution Graphics Byte-Buffer Screen
 unsigned char pixel_buffer[PIXEL_H][PIXEL_W];
 
+
+// -----------------------------------------------------------------
+//      Forward References
+// -----------------------------------------------------------------
+
+ViewFrustum3 update_frustum3();
 
 // make sure all flags are consistent with adjoining cells
 bool validate_model(Map * gm) {
@@ -240,6 +247,13 @@ void init_joiner_map() {
     JOINERS_LOOKUP_MAP[15] = "┼";   // 253C
 }
 
+FILE *log_file = nullptr;
+
+void init_log_file(const char * log_filename) {
+    // 1. Open the file for writing ("w" overwrites, "a" appends)
+    log_file = fopen(log_filename, "w");
+}
+
 const char * get_joiner_str(unsigned index) {
     assert( index <= 15 );
     return JOINERS_LOOKUP_MAP[index];
@@ -254,6 +268,57 @@ const char *  get_joiner_for_flags(bool north, bool west, bool left_north, bool 
     return get_joiner_str(index);
 }
 
+// clear the wall flag bit specified by `mask` for cell f[row][col]
+void clear_wallflag(ViewFrustum3 *vf, int row, int col, WallFlags mask) {
+    assert(row >= 0 && row < MAX_ROWS && row < game_map.rows);
+    assert(col >= 0 && col < MAX_COLS && col < game_map.cols);
+
+    WallFlags *wf = &vf->walls[row][col];
+    *wf = *wf & ~mask;
+}
+
+void write_wallflag_str(WallFlags wf, char * buffer) {
+    const char n = wf & WF_NORTH ? 'N': ' ';
+    const char e = wf & WF_EAST  ? 'E': ' ';
+    const char s = wf & WF_SOUTH ? 'S': ' ';
+    const char w = wf & WF_WEST  ? 'W': ' ';
+    snprintf(buffer, 9, "%c %c %c %c", n, e, s, w);
+
+}
+
+
+void print_frustum_flags(ViewFrustum3 f) {
+    // todo (rob) temp debug output
+    // 1. Save tty modes and leave ncurses temporarily
+    // def_prog_mode();
+    // endwin();
+
+    // 2. Now you are in regular mode: print freely to stdout
+    fprintf(log_file, "\nPos: y:%d, x:%d\n", player.pos.y, player.pos.x);
+    const char lane_prefix[] = {'L', 'C', 'R'};
+    for (int depth = 3; depth >= 0 ; depth--) {
+        fprintf(log_file, "D%d:  ", depth);
+        for (int lane = 0; lane < 3; lane++) {
+            char buffer[32] = {};
+            write_wallflag_str(f.walls[depth][lane], buffer);
+            fprintf(log_file, "[ %c%d: %s ]  ", lane_prefix[lane], depth, buffer);
+
+        }
+        fprintf(log_file,"\n");
+    }
+    fprintf(log_file, "\n");
+    fflush(log_file);
+
+    // 3. Return to ncurses mode
+    // reset_prog_mode();
+    // refresh();            // Restore the ncurses screen contents
+}
+
+
+void printf_view_frustum() {
+    print_frustum_flags(update_frustum3());
+}
+
 //// ------------------------------------------------------------
 ////
 ////    3D Rendering
@@ -263,6 +328,7 @@ const char *  get_joiner_for_flags(bool north, bool west, bool left_north, bool 
 
 // Clear the vector canvas before each rendering update pass
 void clear_pixel_buffer() {
+    // todo (rob) use memset
     for (int y = 0; y < PIXEL_H; y++) {
         for (int x = 0; x < PIXEL_W; x++) {
             pixel_buffer[y][x] = 0;
@@ -318,6 +384,27 @@ void draw_braille_side_wall(WallRect near_r, WallRect far_r, int left_side, int 
     }
 }
 
+void draw_lateral_facing_wall(WallRect r, bool is_left) {
+    int cell_w = r.x1 - r.x0;
+    if (is_left) {
+        int lx0 = (r.x0 - cell_w < 0) ? 0 : r.x0 - cell_w;
+        int lx1 = r.x0;
+        draw_vector_line(lx0, r.y0, lx1, r.y0); // Top
+        draw_vector_line(lx0, r.y1, lx1, r.y1); // Bottom
+        draw_vector_line(lx1, r.y0, lx1, r.y1); // Inner vertical post at corridor boundary
+        if (lx0 > 0) draw_vector_line(lx0, r.y0, lx0, r.y1); // Outer vertical boundary
+    } else {
+        int rx0 = r.x1;
+        int rx1 = (r.x1 + cell_w >= PIXEL_W) ? PIXEL_W - 1 : r.x1 + cell_w;
+        draw_vector_line(rx0, r.y0, rx1, r.y0); // Top
+        draw_vector_line(rx0, r.y1, rx1, r.y1); // Bottom
+        draw_vector_line(rx0, r.y0, rx0, r.y1); // Inner vertical post at corridor boundary
+        if (rx1 < PIXEL_W - 1) draw_vector_line(rx1, r.y0, rx1, r.y1); // Outer vertical boundary
+    }
+}
+
+
+
 // Clear a rectangle face down inside the high-res pixel array buffer to handle occlusions
 void clear_braille_sub_rect(WallRect r) {
     for (int y = r.y0 + 1; y < r.y1; y++) {
@@ -371,181 +458,26 @@ void flush_buffer_to_screen(int start_x, int start_y) {
 }
 
 
-//return '#' for a wall and ' ' for empty space
-char get_tile_at2(Coord target, Direction dir, FrustumSide fs) {
-    // if outside map return a space so nothing is rendered for that coordinate
-    if (target.x < 0 || target.x >= game_map.cols || target.y < 0 || target.y >= game_map.rows) return '#';
-    WallFlags target_flags = game_map.walls[target.y][target.x];
-    WallFlags target_mask = {};
-
-    switch (dir) {
-        case DIR_NORTH:
-        {
-            switch (fs) {
-                case FS_LEFT:
-                    target_mask = WF_EAST;
-                    break;
-                case FS_CENTER:
-                    target_mask = WF_SOUTH;
-                    break;
-                case FS_RIGHT:
-                    target_mask = WF_WEST;
-                    break;
-            }
-            break;
-        }
-        case DIR_SOUTH:
-        {
-            switch (fs) {
-                case FS_LEFT:
-                    target_mask = WF_WEST;
-                    break;
-                case FS_CENTER:
-                    target_mask = WF_NORTH;
-                    break;
-                case FS_RIGHT:
-                    target_mask = WF_EAST;
-                    break;
-            }
-            break;
-        }
-        case DIR_WEST:
-        {
-            switch (fs) {
-                case FS_LEFT:
-                    target_mask = WF_NORTH;
-                    break;
-                case FS_CENTER:
-                    target_mask = WF_EAST;
-                    break;
-                case FS_RIGHT:
-                    target_mask = WF_SOUTH;
-                    break;
-            }
-            break;
-        }
-        case DIR_EAST:
-        {
-            switch (fs) {
-                case FS_LEFT:
-                    target_mask = WF_SOUTH;
-                    break;
-                case FS_CENTER:
-                    target_mask = WF_WEST;
-                    break;
-                case FS_RIGHT:
-                    target_mask = WF_NORTH;
-                    break;
-            }
-            break;
-        }
-    }
-
-    return (target_flags & target_mask) ? '#' : ' ';
+// translate a WallFlags bitfield based on the argument `dir` orientation
+WallFlags rotate_walls(WallFlags flags, Direction dir) {
+    return (WallFlags)(((flags | (flags << 4)) >> dir) & 0x0F);
 }
 
-WallFlags get_walls_at3(Coord target, Direction dir, FrustumSide fs) {
-    // we look in the current cell for existing/visible walls
-    // When we face North, we're looking at the North wall
-
-    if (target.x < 0 || target.x >= game_map.cols || target.y < 0 || target.y >= game_map.rows) return '#';
+WallFlags get_walls_at3(Coord target, Direction dir) {
+    if (target.x < 0 || target.x >= game_map.cols || target.y < 0 || target.y >= game_map.rows) {
+        return 0;
+    }
     WallFlags target_flags = game_map.walls[target.y][target.x];
-    WallFlags target_mask = {};
-
-    switch (dir) {
-        case DIR_NORTH:
-        {
-            // for north there is a 1:1 correspondence between a target's walls and the frustum walls returned
-            return target_flags;
-        }
-        case DIR_EAST:
-        {
-            WallFlags f = {};
-            f |= WF_NORTH * (bool)(target_flags & WF_EAST);
-            f |= WF_EAST  * (bool)(target_flags & WF_SOUTH);
-            f |= WF_SOUTH * (bool)(target_flags & WF_WEST);
-            f |= WF_WEST  * (bool)(target_flags & WF_NORTH);
-            return f;
-        }
-        case DIR_SOUTH:
-        {
-            // for south direction, all directions are flipped:
-            WallFlags f = {};
-            // pseudo code:
-            // f.north = target_flags.south
-            // f.east = target_flags.west
-            // f.south = target_flags.north
-            // f.west = target_flags.east
-            f |= WF_NORTH * (bool)(target_flags & WF_SOUTH);
-            f |= WF_EAST  * (bool)(target_flags & WF_WEST);
-            f |= WF_SOUTH * (bool)(target_flags & WF_NORTH);
-            f |= WF_WEST  * (bool)(target_flags & WF_EAST);
-            return f;
-        }
-        case DIR_WEST:
-        {
-            // for west direction, directions would be turned 90 degrees anti-clockwise,
-            // IF the wall flags were encoded as N E S W, like Direction?
-            WallFlags f = {};
-            f |= WF_NORTH * (bool)(target_flags & WF_WEST);
-            f |= WF_EAST  * (bool)(target_flags & WF_NORTH);
-            f |= WF_SOUTH * (bool)(target_flags & WF_EAST);
-            f |= WF_WEST  * (bool)(target_flags & WF_SOUTH);
-            return f;
-        }
-
-    }
-
-    return 255; // error
-}
-
-ViewFrustum update_frustum2() {
-    ViewFrustum f;
-    int fx = 0, fy = 0, rx = 0, ry = 0;
-    switch (player.dir) {
-        case DIR_NORTH:
-            fx = 0;
-            fy = -1;
-            rx = 1;
-            ry = 0;
-            break;
-        case DIR_EAST:
-            fx = 1;
-            fy = 0;
-            rx = 0;
-            ry = 1;
-            break;
-        case DIR_SOUTH:
-            fx = 0;
-            fy = 1;
-            rx = -1;
-            ry = 0;
-            break;
-        case DIR_WEST:
-            fx = -1;
-            fy = 0;
-            rx = 0;
-            ry = -1;
-            break;
-    }
-
-    for (int depth = 0; depth <= 3; depth++) {
-        for (FrustumSide offset = FS_LEFT; offset <= FS_RIGHT; offset++) {
-            // when offset == -1, we're looking Left
-            // when offset ==  0, we're looking center
-            // when offset ==  1, we're looking right
-            Coord target = {
-                player.pos.x + (fx * depth) + (rx * offset),
-                player.pos.y + (fy * depth) + (ry * offset)
-            };
-            f.cells[depth][offset + 1] = get_tile_at2(target, player.dir, offset);
-        }
-    }
+    WallFlags f = rotate_walls(target_flags, dir); // these are *all* the walls that exist in the frustum.
     return f;
 }
 
+
+
 ViewFrustum3 update_frustum3() {
+    // todo (rob) make size of frustum dynamic so we can see more or less depending on other conditions.
     ViewFrustum3 f;
+    int frustum_depth = 4; // this is currently hardcoded in ViewFrustum3 as 4.
 
     // we look in the current cell for existing/visible walls
     // When we face North, we're looking at the North wall
@@ -579,25 +511,88 @@ ViewFrustum3 update_frustum3() {
             break;
     }
 
-    for (int depth = 0; depth <= 3; depth++) {
-        for (FrustumSide offset = FS_LEFT; offset <= FS_RIGHT; offset++) {
-            // when offset == -1, we're looking Left
-            // when offset ==  0, we're looking center
-            // when offset ==  1, we're looking right
+    for (int depth = 0; depth < frustum_depth; depth++) {
+        for (int lane = -1; lane <= 1; lane++) {
+            // when lane == -1, we're looking Left
+            // when lane ==  0, we're looking center
+            // when lane ==  1, we're looking right
             Coord target = {
-                player.pos.x + (fx * depth) + (rx * offset),
-                player.pos.y + (fy * depth) + (ry * offset)
+                player.pos.x + (fx * depth) + (rx * lane),
+                player.pos.y + (fy * depth) + (ry * lane)
             };
-            f.walls[depth][offset + 1] = get_walls_at3(target, player.dir, offset);
+            f.walls[depth][lane + 1] = get_walls_at3(target, player.dir);
         }
     }
+
+
+
+    // todo (rob) we need to eliminate walls that are not visible.
+    //     // we can't see the outermost walls of L0 nor R0
+    clear_wallflag(&f, 0, FS_LEFT,  WF_WEST);
+    clear_wallflag(&f, 0, FS_RIGHT,  WF_EAST);
+
+    // if there are walls to our immediate left or right, we can't see the corresponding north wall of that cell
+    for (int depth = 0; depth < frustum_depth; depth++) {
+        if (f.walls[depth][FS_CENTER] & WF_WEST) {
+            clear_wallflag(&f, depth, FS_LEFT, WF_NORTH);
+        }
+        if (f.walls[depth][FS_CENTER] & WF_EAST) {
+            clear_wallflag(&f, depth, FS_RIGHT, WF_NORTH);
+        }
+    }
+
+
+    // -----------------------------------------------------------------
+    // Depth 0
+    // -----------------------------------------------------------------
+
+    //  South walls are behind player and not visible.
+    clear_wallflag(&f, 0, FS_LEFT,  WF_SOUTH);
+    clear_wallflag(&f, 0, FS_CENTER, WF_SOUTH);
+    clear_wallflag(&f, 0, FS_RIGHT, WF_SOUTH);
+
+    if (f.walls[0][1] & WF_NORTH) {
+        // all walls in FS_CENTER past this cell are obscured.
+        for (int depth = 1; depth < frustum_depth; depth++) {
+            for (int lane = 0; lane < 3; lane++) {
+                f.walls[depth][lane ] = 0;
+            }
+        }
+    }
+
+    // -----------------------------------------------------------------
+    // Depth 1
+    // -----------------------------------------------------------------
+
+    if (f.walls[1][1] & WF_NORTH) {
+        // if C1.West or L1.North, prune the entire left lane
+        if ( (f.walls[1][FS_CENTER] & WF_WEST) || (f.walls[1][FS_LEFT] & WF_NORTH) ) {
+            for (int depth = 2; depth < frustum_depth; depth++) {
+                f.walls[depth][FS_LEFT ] = 0;
+            }
+        }
+        // similarly for the right lane
+        if ( (f.walls[1][FS_CENTER] & WF_EAST) || (f.walls[1][FS_RIGHT] & WF_NORTH) ) {
+            for (int depth = 2; depth < frustum_depth; depth++) {
+                f.walls[depth][FS_RIGHT ] = 0;
+            }
+        }
+    }
+
+    // -----------------------------------------------------------------
+    // Depth 2
+    // -----------------------------------------------------------------
+
+
+
+
     return f;
 }
 
-void render_3D_view(int right_panel_x, int viewport_y) {
+void render_3D_view2(int right_panel_x, int viewport_y) {
         // PANEL B: Virtual Interface Framework
 
-    ViewFrustum frustum = update_frustum2();
+    ViewFrustum3 frustum = update_frustum3();
     clear_pixel_buffer(); // Fresh slate step for vector processing buffer canvas
 
 
@@ -606,78 +601,134 @@ void render_3D_view(int right_panel_x, int viewport_y) {
     // try drawing a tight border around the 3D view canvas
     // ----------------------------------------------------
     int result = {};
-    move(viewport_y-1, right_panel_x-1);
-    result = hline('-', VIEW_W + 2);   // top line
-    result = vline('|', VIEW_H + 2);   // left line
-    move(viewport_y  + VIEW_H + 1, right_panel_x -1 );
-    result = hline('-', VIEW_W + 2);   // bottom line
-    move(viewport_y-1, right_panel_x + 1 + VIEW_W);
-    result = vline('|', VIEW_H + 2);   // right line
-
+    // move(viewport_y-1, right_panel_x-1);
+    // result = hline('-', VIEW_W + 2);   // top line
+    // result = vline('|', VIEW_H + 2);   // left line
+    // move(viewport_y  + VIEW_H + 1, right_panel_x -1 );
+    // result = hline('-', VIEW_W + 2);   // bottom line
+    // move(viewport_y-1, right_panel_x + 1 + VIEW_W);
+    // result = vline('|', VIEW_H + 2);   // right line
+    // todo (rob) temp debug draw outline around the inner edges of the viewport
+    move(viewport_y, right_panel_x);
+    result = hline('-', VIEW_W);   // top line
+    result = vline('|', VIEW_H);   // left line
+    move(viewport_y  + VIEW_H, right_panel_x );
+    result = hline('-', VIEW_W - 1);   // bottom line
+    move(viewport_y, right_panel_x + VIEW_W - 1);
+    result = vline('|', VIEW_H );   // right line
 
 
     // --- HIGH-RESOLUTION RASTERIZATION DRAW PIPELINE ---
 
-    // LAYER 3: Far Distance (Depth 3)
-    if (frustum.cells[3][1] == '#' || frustum.cells[3][1] == 'E') {
-        draw_braille_front_wall(depth_rects[3]);
+
+    // -----------------------------------------------------------------
+    //      LAYER 3: Far Distance (Depth 3)
+    // -----------------------------------------------------------------
+
+    if (frustum.walls[3][FS_CENTER] & WF_WEST) {
+        draw_braille_side_wall(depth_rects[3], depth_rects[4], 1, 0);
+        draw_vector_line(depth_rects[3].x0, depth_rects[3].y0, depth_rects[3].x0, depth_rects[3].y1); // Near pillar (z=3)
+        draw_vector_line(depth_rects[4].x0, depth_rects[4].y0, depth_rects[4].x0, depth_rects[4].y1); // Far pillar  (z=4)
+    }
+    if (frustum.walls[3][FS_CENTER] & WF_EAST) {
+        draw_braille_side_wall(depth_rects[3], depth_rects[4], 0, 1);
+        draw_vector_line(depth_rects[3].x1, depth_rects[3].y0, depth_rects[3].x1, depth_rects[3].y1); // Near pillar (z=3)
+        draw_vector_line(depth_rects[4].x1, depth_rects[4].y0, depth_rects[4].x1, depth_rects[4].y1); // Far pillar  (z=4)
+    }
+    if (frustum.walls[3][FS_CENTER] & WF_NORTH) {
+        clear_braille_sub_rect(depth_rects[4]);
+        draw_braille_front_wall(depth_rects[4]);
+    }
+    if (frustum.walls[3][FS_LEFT] & WF_NORTH ) {
+        draw_lateral_facing_wall(depth_rects[4], true);
+    }
+    if (frustum.walls[3][FS_RIGHT] & WF_NORTH ) {
+        draw_lateral_facing_wall(depth_rects[4], false);
     }
 
-    // LAYER 2: Mid Distance (Depth 2)
-    if (frustum.cells[2][0] == '#') {
+    // -----------------------------------------------------------------
+    //      LAYER 2: Mid Distance (Depth 2)
+    // -----------------------------------------------------------------
+
+    if (frustum.walls[2][FS_CENTER] & WF_WEST) {
         draw_braille_side_wall(depth_rects[2], depth_rects[3], 1, 0);
         draw_vector_line(depth_rects[2].x0, depth_rects[2].y0, depth_rects[2].x0, depth_rects[2].y1);
         draw_vector_line(depth_rects[3].x0, depth_rects[3].y0, depth_rects[3].x0, depth_rects[3].y1);
     }
-    if (frustum.cells[2][2] == '#') {
+    if (frustum.walls[2][FS_CENTER] & WF_EAST ) {
         draw_braille_side_wall(depth_rects[2], depth_rects[3], 0, 1);
         draw_vector_line(depth_rects[2].x1, depth_rects[2].y0, depth_rects[2].x1, depth_rects[2].y1);
         draw_vector_line(depth_rects[3].x1, depth_rects[3].y0, depth_rects[3].x1, depth_rects[3].y1);
     }
-    if (frustum.cells[2][1] == '#' || frustum.cells[2][1] == 'E') {
-        clear_braille_sub_rect(depth_rects[2]);
-        draw_braille_front_wall(depth_rects[2]);
+    if (frustum.walls[2][FS_CENTER] & WF_NORTH ) {
+        clear_braille_sub_rect(depth_rects[3]);
+        draw_braille_front_wall(depth_rects[3]);
+    }
+    if (frustum.walls[2][FS_LEFT] & WF_NORTH ) {
+        draw_lateral_facing_wall(depth_rects[3], true);
+    }
+    if (frustum.walls[2][FS_RIGHT] & WF_NORTH ) {
+        draw_lateral_facing_wall(depth_rects[3], false);
     }
 
-    // LAYER 1: Close Distance (Depth 1)
-    if (frustum.cells[1][0] == '#') {
+
+    // -----------------------------------------------------------------
+    //      LAYER 1: Close Distance (Depth 1)
+    // -----------------------------------------------------------------
+
+    if (frustum.walls[1][FS_CENTER] & WF_WEST ) {
         draw_braille_side_wall(depth_rects[1], depth_rects[2], 1, 0);
         draw_vector_line(depth_rects[1].x0, depth_rects[1].y0, depth_rects[1].x0, depth_rects[1].y1);
         draw_vector_line(depth_rects[2].x0, depth_rects[2].y0, depth_rects[2].x0, depth_rects[2].y1);
     }
-    if (frustum.cells[1][2] == '#') {
+    if (frustum.walls[1][FS_CENTER] & WF_EAST ) {
         draw_braille_side_wall(depth_rects[1], depth_rects[2], 0, 1);
         draw_vector_line(depth_rects[1].x1, depth_rects[1].y0, depth_rects[1].x1, depth_rects[1].y1);
         draw_vector_line(depth_rects[2].x1, depth_rects[2].y0, depth_rects[2].x1, depth_rects[2].y1);
     }
-
-    if (frustum.cells[1][1] == '#' || frustum.cells[1][1] == 'E') {
-        clear_braille_sub_rect(depth_rects[1]);
-        draw_braille_front_wall(depth_rects[1]);
+    if (frustum.walls[1][FS_CENTER] & WF_NORTH ) {
+        clear_braille_sub_rect(depth_rects[2]);
+        draw_braille_front_wall(depth_rects[2]);
+    }
+    if (frustum.walls[1][FS_LEFT] & WF_NORTH ) {
+        draw_lateral_facing_wall(depth_rects[2], true);
+    }
+    if (frustum.walls[1][FS_RIGHT] & WF_NORTH ) {
+        draw_lateral_facing_wall(depth_rects[2], false);
     }
 
-    // LAYER 0: Immediate walls flanking player coordinates
-    if (frustum.cells[0][0] == '#') {
+
+    // -----------------------------------------------------------------
+    //  LAYER 0: Immediate walls surrounding player coordinates
+    // -----------------------------------------------------------------
+
+    if (frustum.walls[0][FS_CENTER] & WF_WEST ) {
         draw_braille_side_wall(depth_rects[0], depth_rects[1], 1, 0);
         draw_vector_line(depth_rects[0].x0, depth_rects[0].y0, depth_rects[0].x0, depth_rects[0].y1);
         draw_vector_line(depth_rects[1].x0, depth_rects[1].y0, depth_rects[1].x0, depth_rects[1].y1);
     }
-    if (frustum.cells[0][2] == '#') {
+    if (frustum.walls[0][FS_CENTER] & WF_EAST ) {
         draw_braille_side_wall(depth_rects[0], depth_rects[1], 0, 1);
         draw_vector_line(depth_rects[0].x1, depth_rects[0].y0, depth_rects[0].x1, depth_rects[0].y1);
         draw_vector_line(depth_rects[1].x1, depth_rects[1].y0, depth_rects[1].x1, depth_rects[1].y1);
     }
-    // if (frustum.cells[0][1] == '#' || frustum.cells[0][1] == 'E') {
-    //     clear_braille_sub_rect(depth_rects[0]);
-    //     draw_braille_front_wall(depth_rects[0]);
-    // }
+    if (frustum.walls[0][FS_CENTER] & WF_NORTH) {
+        clear_braille_sub_rect(depth_rects[1]);
+        draw_braille_front_wall(depth_rects[1]);
+    }
+    if (frustum.walls[0][FS_LEFT] & WF_NORTH ) {
+        draw_lateral_facing_wall(depth_rects[1], true);
+    }
+    if (frustum.walls[0][FS_RIGHT] & WF_NORTH ) {
+        draw_lateral_facing_wall(depth_rects[1], false);
+    }
 
     // Convert vector high-res map down to the target display matrix location panels
     flush_buffer_to_screen(right_panel_x, viewport_y);
-    if (frustum.cells[1][1] == 'E' || frustum.cells[2][1] == 'E' || frustum.cells[3][1] == 'E') {
-        mvprintw(viewport_y + (VIEW_H / 2), right_panel_x + (VIEW_W / 2) - 4, "[ ESCAPE ]");
-    }
+
+
 }
+
 
 
 //// ------------------------------------------------------------
@@ -834,15 +885,6 @@ void render_2D_map2(Map * gm, int left_panel_x, int left_panel_y) {
     */
 
 
-
-
-    const char *taco =  "🌮";  // For target end position
-    mvaddstr(
-        left_panel_y +  (end_location.y) * (row_scale - 1 ) + 1,
-        left_panel_x +  (end_location.x) * (col_scale - 1 ) + 2,
-        taco
-    );
-
 }
 
 
@@ -899,8 +941,8 @@ void move_player(int step) {
             player.pos.y == end_location.y )
         {
             // do end code
-            player_won = 1;
-            game_running = 0;
+            // player_won = 1;
+            // game_running = 0;
         }
     }
 }
@@ -911,7 +953,7 @@ void render_game(Map * gm) {
     int left_panel_x = 2;
     int left_panel_y = 2;
 
-    int right_panel_x = (gm->cols * 5) + 6;
+    int right_panel_x = (gm->cols * 5 - 1) + 6;
     int viewport_y = 2;
 
     // Panel A : 2D overview map
@@ -924,7 +966,7 @@ void render_game(Map * gm) {
     // }
 
     // PANEL B: Virtual Interface Framework
-    render_3D_view(right_panel_x, viewport_y );
+    render_3D_view2(right_panel_x, viewport_y );
 
     int footer_y = (gm->rows > VIEW_H + 4) ? gm->rows : VIEW_H + 4;
     mvprintw(footer_y + 1, 0, "Controls: UP/DOWN (Walk), LEFT/RIGHT (Turn). Press 'q' to quit.");
@@ -932,7 +974,8 @@ void render_game(Map * gm) {
 }
 
 
-int main() {
+int main(int argc, char *argv[]) {
+    int return_code = 0;
     // CRITICAL: Tell C runtime program system to unpack wide character sets
     // 1. Try to inherit the user's environment
     if (!setlocale(LC_ALL, "")) {
@@ -942,9 +985,19 @@ int main() {
         }
     }
 
-    if (!load_map2("fmap1.txt")) {
-        printf("Error: Could not open map2.txt.\n");
-        return 1;
+    init_log_file("flog.txt");
+
+    const char * default_filename = "fmap_10x10_empty.txt";
+    const char * filename = default_filename;
+    if (argc > 1) {
+        // first argument is the name of the map file to use
+        filename = argv[1];
+    }
+
+    if (!load_map2(filename)) {
+        printf("Error: Could not open %s.\n", filename);
+        return_code =  1;
+        goto end;
     }
 
     init_joiner_map();
@@ -974,12 +1027,23 @@ int main() {
                 break;
             case KEY_RIGHT: turn_player(1);
                 break;
+            case 'p' : printf_view_frustum();
+                break;
             case 'q': game_running = 0;
                 break;
             default: break;
         }
     }
     endwin();
+
     if (player_won) printf("\n🎉 Victory! You smoothly outmaneuvered the vector maze wireframe layout!\n\n");
-    return 0;
+
+end:
+    if (log_file) {
+        fclose(log_file);
+        log_file = nullptr;
+    }
+
+
+    return return_code;
 }

@@ -23,7 +23,12 @@ BREW_NCURSES_PKGCONFIG := $(shell brew --prefix ncurses 2>/dev/null)/lib/pkgconf
 NCURSES_CFLAGS := $(shell PKG_CONFIG_PATH="$(BREW_NCURSES_PKGCONFIG):$$PKG_CONFIG_PATH" pkg-config --cflags ncursesw 2>/dev/null || pkg-config --cflags ncurses 2>/dev/null)
 NCURSES_LIBS   := $(shell PKG_CONFIG_PATH="$(BREW_NCURSES_PKGCONFIG):$$PKG_CONFIG_PATH" pkg-config --libs ncursesw 2>/dev/null || pkg-config --libs ncurses 2>/dev/null || echo "-lncurses")
 
-CFLAGS += -std=c23 -g -D_XOPEN_SOURCE_EXTENDED=1 $(NCURSES_CFLAGS)
+SANFLAGS = -fsanitize=address -fsanitize=leak
+
+CFLAGS += -std=c23 -g -D_XOPEN_SOURCE_EXTENDED=1 $(NCURSES_CFLAGS) ${SANFLAGS}
+LDFLAGS += $(SANFLAGS)
+
+
 LIBS   += $(NCURSES_LIBS)
 
 
@@ -55,7 +60,7 @@ ${EXE_DIR}:
 
 # Rule to link each executable from its matching object file
 ${EXE_DIR}/%: ${EXE_DIR}/%.o
-	${CC} -o $@ $< ${LIBS}
+	${CC} ${LDFLAGS} -o $@ $< ${LIBS}
 
 # Rule to compile each .c file into a .o file in EXE_DIR
 ${EXE_DIR}/%.o: ${SRC_DIR}/%.c | ${EXE_DIR}
