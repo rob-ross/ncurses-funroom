@@ -19,6 +19,7 @@ int main() {
            password);
     refresh();
 
+    getch();
 
     endwin();
     return 0;

@@ -12,9 +12,11 @@ int main()
 	napms(5000);			/* 5 seconds */
 
 	addstr("Flushing buffer.\n");
-	flushinp();
+	flushinp();  // flush input
 	addstr("Here is what you typed:\n");
 	getnstr(buffer,80);
+
+    getch();
 
 	endwin();
 	return 0;
