@@ -970,7 +970,8 @@ void render_game(Map * gm) {
 
     int win_h, win_w;
     getmaxyx(stdscr, win_h, win_w);
-    // int footer_y = (gm->rows > win_h + 4) ? gm->rows : win_w + 4;mvprintw(win_h - 1, 0, "Controls: UP/DOWN (Walk), LEFT/RIGHT (Turn). Press 'q' to quit.");
+    // int footer_y = (gm->rows > win_h + 4) ? gm->rows : win_w + 4;
+    mvprintw(win_h - 1, 0, "Controls: UP/DOWN (Walk), LEFT/RIGHT (Turn). Press 'q' to quit.");
     refresh();
 }
 
