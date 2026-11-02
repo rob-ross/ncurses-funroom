@@ -45,10 +45,7 @@
 // in this order to make it easy to update position modulo 4
 typedef enum { DIR_NORTH = 0, DIR_EAST = 1, DIR_SOUTH = 2, DIR_WEST = 3 } Direction;
 
-typedef struct {
-    int x;
-    int y;
-} Coord;
+
 
 //Bit flag masks to signify presence of corresponding wall in a map cell.
 // walls encoded as W S E N
@@ -60,6 +57,10 @@ typedef enum : unsigned char {
     WF_WEST  = 1u << 3, // bit 3 (8)
 } WallFlags;
 
+typedef struct {
+    int x;
+    int y;
+} Coord;
 
 typedef struct {
     Coord pos;
@@ -527,7 +528,7 @@ ViewFrustum3 update_frustum3() {
 
 
     // todo (rob) we need to eliminate walls that are not visible.
-    //     // we can't see the outermost walls of L0 nor R0
+    // we can't see the outermost walls of L0 nor R0
     clear_wallflag(&f, 0, FS_LEFT,  WF_WEST);
     clear_wallflag(&f, 0, FS_RIGHT,  WF_EAST);
 
@@ -564,7 +565,7 @@ ViewFrustum3 update_frustum3() {
     // Depth 1
     // -----------------------------------------------------------------
 
-    if (f.walls[1][1] & WF_NORTH) {
+    if (f.walls[1][FS_CENTER] & WF_NORTH) {
         // if C1.West or L1.North, prune the entire left lane
         if ( (f.walls[1][FS_CENTER] & WF_WEST) || (f.walls[1][FS_LEFT] & WF_NORTH) ) {
             for (int depth = 2; depth < frustum_depth; depth++) {
@@ -582,8 +583,19 @@ ViewFrustum3 update_frustum3() {
     // -----------------------------------------------------------------
     // Depth 2
     // -----------------------------------------------------------------
-
-
+    if (f.walls[2][FS_CENTER] & WF_NORTH)
+        // if C1.West or L1.North, prune the entire left lane
+            if ( (f.walls[2][FS_CENTER] & WF_WEST) || (f.walls[2][FS_LEFT] & WF_NORTH) ) {
+                for (int depth = 3; depth < frustum_depth; depth++) {
+                    f.walls[depth][FS_LEFT ] = 0;
+                }
+            }
+    // similarly for the right lane
+    if ( (f.walls[2][FS_CENTER] & WF_EAST) || (f.walls[2][FS_RIGHT] & WF_NORTH) ) {
+        for (int depth = 3; depth < frustum_depth; depth++) {
+            f.walls[depth][FS_RIGHT ] = 0;
+        }
+    }
 
 
     return f;
