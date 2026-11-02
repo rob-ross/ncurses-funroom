@@ -238,7 +238,7 @@ bool validate_model(Map * gm) {
 // Flags indicate walls in the N, E, S, or W of the grid square.
 // Each character is a hex nibble 0-F. This can be expanded as needed by any printable ASCII range, line 0-Z, etc.
 // to encode a bit pattern
-int load_map2(const char *filename) {
+int load_map4t(const char *filename) {
     FILE *file = fopen(filename, "r");
     if (!file) return 0;
     game_map.rows = game_map.cols = 0;
@@ -834,7 +834,7 @@ int main() {
     setlocale(LC_ALL, ""); // CRITICAL: Tell C runtime program system to unpack wide character sets
 
 
-    if (!load_map2("map3.txt")) {
+    if (!load_map4t("map3.txt")) {
         printf("Error: Could not open map2.txt.\n");
         return 1;
     }

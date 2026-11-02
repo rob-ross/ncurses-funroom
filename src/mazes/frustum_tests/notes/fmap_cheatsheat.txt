@@ -1,6 +1,6 @@
 
 
-// bit layout:
+// 4 bit layout:
 //     W S E N
                 __
 // 9 = 1 0 0 1  |
@@ -39,3 +39,30 @@ West  8: 1 0 0 0  |
 
 // E = 1 1 1 0   |  |
                  ----
+
+8 bit layout:
+ * open 00, wall 01, door 10, invis door 11
+ * Bit:    7   6   |   5   4   |   3   2   |   1   0
+ * Edge:  [ WEST ] |  [ SOUTH] |  [ EAST ] |  [ NORTH]
+
+ North wall x01:  00 00 00 01
+ East  wall x04:  00 00 01 00
+ South wall x10:  00 01 00 00
+ West  wall x40:  01 00 00 00
+
+All edges: x55:   01 01 01 01
+
+DOORS:
+
+All doors: xAA:   10 10 10 10
+North door x02:   00 00 00 10
+East  door x08:   00 00 10 00
+South door x20:   00 10 00 00
+West  door x80:   10 00 00 00
+
+
+South D, E wall x24 : 00 10 01 00
+
+East D, S wall  x18 : 00 01 10 00
+
+North D, S wall x12 : 00 01 00 10

@@ -1,4 +1,4 @@
-//  frustum_utf8_01c
+//  frustum_utf8_01.c
 //
 //  Created by Rob Ross on 10/28/26.
 //
@@ -191,7 +191,7 @@ bool validate_model(Map * gm) {
 // Flags indicate walls in the N, E, S, or W of the grid square.
 // Each character is a hex nibble 0-F. This can be expanded as needed by any printable ASCII range, line 0-Z, etc.
 // to encode a bit pattern
-int load_map2(const char *filename) {
+int load_map4t(const char *filename) {
     FILE *file = fopen(filename, "r");
     if (!file) return 0;
     game_map.rows = game_map.cols = 0;
@@ -1008,7 +1008,7 @@ int main(int argc, char *argv[]) {
         filename = argv[1];
     }
 
-    if (!load_map2(filename)) {
+    if (!load_map4t(filename)) {
         printf("Error: Could not open %s.\n", filename);
         return_code =  1;
         goto end;
