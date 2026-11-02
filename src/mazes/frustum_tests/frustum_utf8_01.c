@@ -968,8 +968,10 @@ void render_game(Map * gm) {
     // PANEL B: Virtual Interface Framework
     render_3D_view2(right_panel_x, viewport_y );
 
-    int footer_y = (gm->rows > VIEW_H + 4) ? gm->rows : VIEW_H + 4;
-    mvprintw(footer_y + 1, 0, "Controls: UP/DOWN (Walk), LEFT/RIGHT (Turn). Press 'q' to quit.");
+    int win_h, win_w;
+    getmaxyx(stdscr, win_h, win_w);
+    // int footer_y = (gm->rows > win_h + 4) ? gm->rows : win_w + 4;
+    mvprintw(win_h - 1, 0, "Controls: UP/DOWN (Walk), LEFT/RIGHT (Turn). Press 'q' to quit.");
     refresh();
 }
 
