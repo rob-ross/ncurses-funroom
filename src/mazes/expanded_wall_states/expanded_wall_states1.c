@@ -106,7 +106,7 @@ typedef struct {
     int rows;
     int cols;
     edge_flags walls[MAX_ROWS][MAX_COLS];
-} Map;
+} MapData;
 
 
 typedef struct {
@@ -179,7 +179,7 @@ constexpr char HORIZONTAL_WHITE_RECTANGLE[] = "\u25AD"; // ▭
 
 
 // Global Game State
-Map game_map;
+MapData game_map;
 
 Player player;
 int game_running = 1;
@@ -198,7 +198,7 @@ ViewFrustum3 update_frustum3();
 
 
 // make sure all flags are consistent with adjoining cells
-bool validate_model(Map * gm) {
+bool validate_model(MapData * gm) {
     bool errs_found = false;
     for (int row = 0; row < gm->rows; ++row) {
         printf("Row %d: ", row);
@@ -910,7 +910,7 @@ void render_3D_view2(int right_panel_x, int viewport_y) {
 ////
 //// ------------------------------------------------------------
 
-void render_2D_map2(Map * gm, int left_panel_x, int left_panel_y) {
+void render_2D_map2(MapData * gm, int left_panel_x, int left_panel_y) {
     // in the Map model, adjacent cells share a common wall. I.e, the East wall of a cell will have the
     // same value as the West wall of the cell to the right. We use this to optimize drawing by only
     // processing the North and West walls and the North West joiners in the main rendering loop,
@@ -1082,7 +1082,7 @@ void render_2D_map2(Map * gm, int left_panel_x, int left_panel_y) {
 //      Movement
 // -----------------------------------------------------------------
 
-bool player_can_move(Player p, Map * gm, Coord target, Direction dir) {
+bool player_can_move(Player p, MapData * gm, Coord target, Direction dir) {
     if (target.x < 0 || target.x >= gm->cols || target.y < 0 || target.y >= gm->rows) return false;
     edge_flags flags = gm->walls[p.pos.y][p.pos.x];
     EdgeType edge = get_edge(flags, dir);
@@ -1140,7 +1140,7 @@ void move_player(int step) {
     }
 }
 
-void render_game(Map * gm) {
+void render_game(MapData * gm) {
     // clear();
     erase();
 
@@ -1183,7 +1183,7 @@ int main(int argc, char *argv[]) {
 
     init_log_file("flog.txt");
 
-    const char * default_filename = "fmap_10x10_empty.txt";
+    const char * default_filename = "./maps/fmap_14x14_empty.map8t";
     const char * filename = default_filename;
     if (argc > 1) {
         // first argument is the name of the map file to use
