@@ -30,7 +30,7 @@ typedef struct {
     char grid[MAX_ROWS][MAX_COLS];
     int rows;
     int cols;
-} Map;
+} MapData;
 
 typedef enum {
     DIR_NORTH = 0,
@@ -47,7 +47,7 @@ typedef struct {
 
 
 // Global Game State
-Map game_map;
+MapData game_map;
 Player player;
 int game_running = 1;
 int player_won = 0;

@@ -32,7 +32,7 @@ typedef struct {
     char grid[MAX_ROWS][MAX_COLS];
     int rows;
     int cols;
-} Map;
+} MapData;
 
 // Frustum Grid Representation
 // Index mappings: Depth (0 to 3 ahead), Offset (0=Left, 1=Center, 2=Right)
@@ -41,7 +41,7 @@ typedef struct {
     char cells[4][3];
 } ViewFrustum;
 
-Map game_map;
+MapData game_map;
 Player player;
 int game_running = 1;
 int player_won = 0;

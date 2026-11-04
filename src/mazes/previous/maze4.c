@@ -24,7 +24,7 @@ typedef enum {
 
 typedef struct { int x; int y; } Coord;
 typedef struct { Coord pos; Direction dir; } Player;
-typedef struct { char grid[MAX_ROWS][MAX_COLS]; int rows; int cols; } Map;
+typedef struct { char grid[MAX_ROWS][MAX_COLS]; int rows; int cols; } MapData;
 typedef struct { char cells[4][3]; } ViewFrustum;
 
 // Wireframe Layer Geometry Config
@@ -38,7 +38,7 @@ WallRect depth_rects[4] = {
     { 16, 8,  23, 11 }  // Depth 3 (Far)
 };
 
-Map game_map;
+MapData game_map;
 Player player;
 int game_running = 1;
 int player_won = 0;

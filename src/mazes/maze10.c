@@ -74,7 +74,7 @@ typedef struct {
     WallFlags walls[MAX_ROWS][MAX_COLS];
     // todo temp - this is wasteful of memory. We need a hashmap from row,col to a list of objects at that grid location
     wint_t    objects[MAX_ROWS][MAX_COLS];
-} Map;
+} MapData;
 
 
 typedef struct {
@@ -90,7 +90,7 @@ WallRect depth_rects[4] = {
 };
 
 // Global Game State
-Map game_map;
+MapData game_map;
 
 Player player;
 int game_running = 1;
@@ -203,7 +203,7 @@ void flush_buffer_to_screen(int start_x, int start_y) {
 
 
 // make sure all flags are consistent with adjoining cells
-bool validate_model(Map * gm) {
+bool validate_model(MapData * gm) {
     bool errs_found = false;
     for (int row = 0; row < gm->rows; ++row) {
         printf("Row %d: ", row);
@@ -429,7 +429,7 @@ char get_tile_at3(Coord target, Direction dir, FrustumSide fs) {
 
 
 
-bool player_can_move(Player p, Map * gm, Coord target, WallFlags dir) {
+bool player_can_move(Player p, MapData * gm, Coord target, WallFlags dir) {
     if (target.x < 0 || target.x >= gm->cols || target.y < 0 || target.y >= gm->rows) return false;
     WallFlags flags = gm->walls[p.pos.y][p.pos.x];
 
@@ -573,7 +573,7 @@ const wint_t *  get_joiner_for_flags(bool north, bool west, bool left_north, boo
     return get_joiner_wstr(index);
 }
 
-void render_2D_map2(Map * gm, int left_panel_x, int left_panel_y) {
+void render_2D_map2(MapData * gm, int left_panel_x, int left_panel_y) {
     // in the Map model, adjacent cells share a common wall. I.e, the East wall of a cell will have the
     // same value as the West wall of the cell to the right. We use this to optimize drawing by only
     // processing the North and West walls and the North West joiners in the main rendering loop,
@@ -804,7 +804,7 @@ void render_3D_view(int right_panel_x, int viewport_y) {
     }
 }
 
-void render_game(Map * gm) {
+void render_game(MapData * gm) {
     clear();
 
     int left_panel_x = 2;

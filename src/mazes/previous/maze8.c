@@ -54,7 +54,7 @@ typedef struct {
     char grid[MAX_ROWS][MAX_COLS];
     int rows;
     int cols;
-} Map;
+} MapData;
 
 //Bit flag masks to signify presence of corresponding wall in a square.
 // Leftmost bit is for West, rightmost bit is for East, North and South are middle bits.
@@ -92,7 +92,7 @@ WallRect depth_rects[4] = {
 };
 
 // Global Game State
-Map game_map;
+MapData game_map;
 Map2 game_map2;
 
 Player player;
@@ -561,7 +561,7 @@ void render_3D_view(int right_panel_x, int viewport_y) {
     }
 }
 
-void render_game(Map * gm) {
+void render_game(MapData * gm) {
     clear();
 
     int left_panel_x = 2;

@@ -44,7 +44,7 @@ typedef struct {
     char grid[MAX_ROWS][MAX_COLS];
     int rows;
     int cols;
-} Map;
+} MapData;
 
 typedef struct {
     char cells[4][3];
@@ -64,7 +64,7 @@ WallRect depth_rects[4] = {
 };
 
 // Global Game State
-Map game_map;
+MapData game_map;
 Player player;
 int game_running = 1;
 int player_won = 0;
