@@ -25,13 +25,15 @@ int main()
 	/* color and fill windows */
 	wbkgd(red,COLOR_PAIR(1) | 'r');
 	wbkgd(blue,COLOR_PAIR(2) | 'b');
-	wrefresh(red);
-	wrefresh(blue);
-	getch();
+    wrefresh(red);
+    wrefresh(blue);
+    getch();
 
 	/* overwrite windows */
-	overwrite(red,blue);
+    int result;
+	result = overwrite(red,blue);
 	wrefresh(blue);
+    mvprintw(30,0,"result=%d",result);
 	getch();
 
 	endwin();

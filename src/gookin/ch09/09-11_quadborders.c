@@ -1,5 +1,7 @@
 #include <ncurses.h>
 
+#include "../../../../../../../../../Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/ncurses.h"
+
 int main()
 {
 	WINDOW *a,*b,*c,*d;

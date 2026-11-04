@@ -19,7 +19,7 @@ int main()
 		puts("Unable to create window");
 		return 1;
 	}
-	
+
 	/* put text on alpha */
 	wbkgd(alpha,COLOR_PAIR(1));
 	mvwaddstr(alpha,1,2,"Window Alpha");
@@ -29,6 +29,8 @@ int main()
 	/* move window alpha */
 	mvwin(alpha,10,43);
 	mvwaddstr(alpha,2,2,"Moved!");
+    touchwin(stdscr);
+    refresh();
 	wrefresh(alpha);
 	getch();
 

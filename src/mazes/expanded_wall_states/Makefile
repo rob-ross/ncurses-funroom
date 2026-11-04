@@ -40,6 +40,8 @@ EXE_DIR = ../../../out/mazes
 
 SRCS = \
 	${SRC_DIR}/expanded_wall_states1.c \
+	${SRC_DIR}/expanded_wall_states2.c \
+
 
 
 

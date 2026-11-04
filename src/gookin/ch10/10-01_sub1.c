@@ -18,7 +18,7 @@ int main()
 	/* draw a box around stdscr */
 	box(stdscr,0,0);
 	/* put text to the subwindow */
-	waddstr(sub,"I'm in a subwindow.\n");
+	waddstr(sub,"I'm in a subwindow.\nWith multiple lines\n");
 	refresh();
 	getch();
 

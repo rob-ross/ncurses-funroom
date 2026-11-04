@@ -27,14 +27,30 @@ int main()
 	addstr("This is the standard screen\n");
 	addstr("Press Enter");
 	refresh();
-	getch();
+    int c;
+
+    do {
+        c = getch();
+        if (c == KEY_RESIZE) {
+            /* Resize second window to new terminal dimensions */
+            wresize(second, LINES, COLS);
+            wbkgd(second, COLOR_PAIR(2));
+            werase(second);
+            waddstr(second, "This is the second window\n");
+        }
+    } while (c == KEY_RESIZE || c == ERR);
 	/* show second window */
 	wrefresh(second);
-	getch();
+    do {
+        c = wgetch(second);
+
+    } while (c == KEY_RESIZE || c == ERR);
 	/* show standard screen again */
 	touchwin(stdscr);
 	refresh();
-	getch();
+    do {
+        c = getch();
+    } while (c == KEY_RESIZE || c == ERR);
 
 	endwin();
 	return 0;
