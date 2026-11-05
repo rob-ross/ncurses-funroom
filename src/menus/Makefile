@@ -2,7 +2,7 @@
 
 CC = clang
 CFLAGS = -std=c23 -g
-LIBS=-lpanel -lncurses
+LIBS=-lmenu -lpanel -lncurses
 
 
 SRC_DIR = .

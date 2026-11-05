@@ -31,7 +31,7 @@
  *
  */
 
-WINDOW* menubar = nullptr;
+WINDOW* menubar_win = nullptr;
 WINDOW* main_win = nullptr;
 
 int main() {
@@ -51,10 +51,10 @@ int main() {
     init_pair(2, COLOR_BLACK, COLOR_MAGENTA);
 
     // create windows
-    menubar = newwin(1, cols, 0, 0); // 1 row tall by screen-width wide
-    wbkgd(menubar,COLOR_PAIR(1));
-    wattrset(menubar, COLOR_PAIR(1));
-    keypad(menubar, true); // required to get mouse clicks
+    menubar_win = newwin(1, cols, 0, 0); // 1 row tall by screen-width wide
+    wbkgd(menubar_win,COLOR_PAIR(1));
+    wattrset(menubar_win, COLOR_PAIR(1));
+    keypad(menubar_win, true); // required to get mouse clicks
     mousemask( ALL_MOUSE_EVENTS, nullptr);
 
     main_win = newwin(rows - 1, cols, 1, 0); // rest of the screen
@@ -66,9 +66,9 @@ int main() {
     PANEL * base_panel = new_panel(main_win);
 
     char * menu_titles[4] = { "File", "Edit", "View", "Help"};
-    wmove(menubar, 0, 1);
+    wmove(menubar_win, 0, 1);
     for (int i = 0; i < 4; ++i) {
-        wprintw(menubar, "%s  ", menu_titles[i]);
+        wprintw(menubar_win, "%s  ", menu_titles[i]);
     }
 
     char * menu_file_titles[3] = { "New", "Open...", "Save"};
@@ -85,14 +85,14 @@ int main() {
     curs_set(0);
 
     update_panels();
-    wnoutrefresh(menubar);
+    wnoutrefresh(menubar_win);
     wnoutrefresh(main_win);
     doupdate();
 
     getch();
     int c;
     do {
-        c = wgetch(menubar);
+        c = wgetch(menubar_win);
         if (c != ERR) {
             if (c == KEY_MOUSE) {
                 MEVENT event;
@@ -124,7 +124,7 @@ int main() {
     del_panel(file_panel);
 
     delwin(file_menu);
-    delwin(menubar);
+    delwin(menubar_win);
     delwin(main_win);
 
     endwin();
