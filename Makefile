@@ -10,6 +10,10 @@ all:
 	cd ${SRC_DIR}/gookin	&& $(MAKE)
 	cd ${SRC_DIR}/color	    && $(MAKE)
 	cd ${SRC_DIR}/mazes	    && $(MAKE)
+	cd ${SRC_DIR}/soft_labels && $(MAKE)
+	cd ${SRC_DIR}/menus && $(MAKE)
+
+
 
 
 	@echo
@@ -27,3 +31,5 @@ clean:
 	cd ${SRC_DIR}/gookin   && $(MAKE) clean
 	cd ${SRC_DIR}/color	   && $(MAKE) clean
 	cd ${SRC_DIR}/mazes	   && $(MAKE) clean
+	cd ${SRC_DIR}/soft_labels && $(MAKE) clean
+	cd ${SRC_DIR}/menus && $(MAKE)		clean

@@ -1294,6 +1294,10 @@ void render_game(GameState * gs) {
     int max_dest_rows = map_pad_rows < vwin_rows ? map_pad_rows : vwin_rows;
     int max_dest_cols = map_pad_cols < vwin_cols ? map_pad_cols : vwin_cols;
 
+    // todo temp debug (rob) when the viewport scrolls at the bottom it leaves artifacts. A few dots on the bottom row.
+    // this is to try to fix that.
+    // this glitch doesn't happen in Ghosttty. Just MacOS Terminal app.
+    werase(vp->view_win);
 
     int result = copywin( map_pad, vp->view_win, vp->map_pos.y, vp->map_pos.x, 0, 0, max_dest_rows - 1, max_dest_cols - 1, false);
 
@@ -1342,14 +1346,57 @@ void init_2D_view(GameState *gs, const int scr_x, const int scr_y, const int scr
 
     log_window_size(vp_border, "vp_border");
 
-    const cchar_t horiz_cc = { .chars = L'═'};
-    const cchar_t vert_cc  = { .chars = L'║'};
-    const cchar_t tl_cc    = { .chars = L'╔'};
-    const cchar_t tr_cc    = { .chars = L'╗'};
-    const cchar_t bl_cc    = { .chars = L'╚'};
-    const cchar_t br_cc    = { .chars = L'╝'};
+    // vertical
+    //  ⎛
+    //  ⎠
+    //  ⎞
+    //  ⎝
+    //  ⎛
+    //  ⎠
+    //  ⎞
+    //  ⎝
+    // horizontal
+    //  ╭╯╰╮╭╯╰╮   ╯╰⠒╯⠢  ◠◡  ◜  ◝   ◞   ◟
 
+
+    // interesting border chars: ∞ ═
+    const cchar_t horiz_cc = { .chars = L'⠶'};  // ═ ∞ ᛟ ᛯ ☰ ⠶
+    const cchar_t vert_cc  = { .chars = L'⣿'};  // ║ ᛝ ᛥ  ⎞  ⎝ ╳ ⩆  ⣿
+    const cchar_t tl_cc    = { .chars = L'⣶'};  // ╔
+    const cchar_t tr_cc    = { .chars = L'⣶'};  // ╗
+    const cchar_t bl_cc    = { .chars = L'⠿'};  // ╚
+    const cchar_t br_cc    = { .chars = L'⠿'};  // ╝
     wborder_set(vp_border,  &vert_cc, &vert_cc, &horiz_cc, &horiz_cc, &tl_cc, &tr_cc, &bl_cc, &br_cc);
+
+
+    // we manually draw the border now
+
+    // From Miscellaneous Technical Block
+    const char *side_border_chars[4] = {"⎛","⎠","⎞","⎝"};
+    // From Box Drawing Block ╭   ╮   ╯ ╰
+    // const char *horiz_border_chars[4] = {"╭","╯","╰","╮"};
+    const char *horiz_border_chars[4] = {"◠","◡","◠","◡"};
+
+
+    // vertical borders
+    // for (int row = 0; row < scr_height; row++) {
+    //     int left_start_index  = 2;
+    //     int right_start_index = 0;
+    //     const char *left_row_char  = side_border_chars[(row + left_start_index) % 4];
+    //     const char *right_row_char = side_border_chars[(row + right_start_index) % 4];
+    //     mvwaddstr(vp_border, row, 0,            left_row_char);
+    //     mvwaddstr(vp_border, row, scr_width - 1,right_row_char );
+    // }
+    // horizontal border
+    // for (int col = 0; col < scr_width; col++) {
+    //     int top_start_index  = 0;
+    //     int bottom_start_index = 1;
+    //     const char *top_row_char  = horiz_border_chars[(col + top_start_index) % 4];
+    //     const char *bottom_row_char = horiz_border_chars[(col + bottom_start_index) % 4];
+    //     mvwaddstr(vp_border, 0,              col, top_row_char);
+    //     mvwaddstr(vp_border, scr_height - 1, col, bottom_row_char );
+    // }
+
 
     WINDOW *vp_win = derwin(vp_border, scr_height - 2, scr_width -  2, 1, 1);
     log_window_size(vp_win, "vp_win");
@@ -1431,6 +1478,12 @@ int main(int argc, char *argv[]) {
                 break;
             case KEY_RIGHT: turn_player( &game_state,1);
                 break;
+            case 'm':
+                log_window_contents(game_state.static_map.map_pad, "map_pad");
+                break;
+            case 'v':
+                    log_window_contents(game_state.map2D_view.view_win, "view_win");
+                    break;
             case 'p' : printf_view_frustum();
                 break;
             case 'q': game_running = 0;

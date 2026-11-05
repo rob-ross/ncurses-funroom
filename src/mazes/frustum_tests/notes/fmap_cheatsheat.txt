@@ -49,6 +49,16 @@ West  8: 1 0 0 0  |
  East  wall x04:  00 00 01 00
  South wall x10:  00 01 00 00
  West  wall x40:  01 00 00 00
+                    --
+ North + West wall: |
+  01 00 00 01: x41
+                     __
+ North + South wall: __
+  00 01 00 01: x11
+
+South + West wall: x50
+
+East + West wall: x14
 
 All edges: x55:   01 01 01 01
 

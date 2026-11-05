@@ -14,8 +14,8 @@ all:
 	cd ${SRC_DIR}/ch11 	&& $(MAKE)
 	cd ${SRC_DIR}/ch12 	&& $(MAKE)
 	cd ${SRC_DIR}/ch13 	&& $(MAKE)
-#	cd ${SRC_DIR}/ch14 	&& $(MAKE)
-#	cd ${SRC_DIR}/ch15 	&& $(MAKE)
+	cd ${SRC_DIR}/ch14 	&& $(MAKE)
+	cd ${SRC_DIR}/ch15 	&& $(MAKE)
 
 clean:
 	cd ${SRC_DIR}/ch01  && $(MAKE) clean
@@ -31,7 +31,7 @@ clean:
 	cd ${SRC_DIR}/ch11 	&& $(MAKE) clean
 	cd ${SRC_DIR}/ch12 	&& $(MAKE) clean
 	cd ${SRC_DIR}/ch13 	&& $(MAKE) clean
-#	cd ${SRC_DIR}/ch14 	&& $(MAKE) clean
-#	cd ${SRC_DIR}/ch15 	&& $(MAKE) clean
+	cd ${SRC_DIR}/ch14 	&& $(MAKE) clean
+	cd ${SRC_DIR}/ch15 	&& $(MAKE) clean
 
 

@@ -1,7 +1,17 @@
+#include <locale.h>
+
+#define _XOPEN_SOURCE_EXTENDED 1 // Enforce POSIX and wide-character terminal extensions
 #include <ncurses.h>
 
 int main()
 {
+     if (!setlocale(LC_ALL, "")) {
+         // 2. Fallback to standard C.UTF-8 or UTF-8 if the environment is misconfigured
+         if (!setlocale(LC_ALL, "C.UTF-8")) {
+             setlocale(LC_ALL, "en_US.UTF-8");
+         }
+     }
+
 	FILE *wfile;
 	WINDOW *win;
 	int r;
@@ -35,7 +45,7 @@ int main()
 	else
 		addstr("Window data written");
 
-/* close file and update */	
+/* close file and update */
 	fclose(wfile);
 	refresh();
 	getch();
