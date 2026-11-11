@@ -1,0 +1,66 @@
+
+
+color
+-
+init_color(short index, short r, short g, short b);
+index is in rage of 8 to COLOR-1.
+Default color indices are from 0-7 and should not be used here.
+COLOR is the count of supported colors on the terminal.
+rgb values go from 0 - 1000... for reasons?
+To convert from v1(0,255) -> v2(0, 1000)
+v1 * 255 / 1000?
+-
+ncurses chtype is just `typedef unsigned chtype;`
+-
+when calling new_item(), it will return nullptr if you pass an empty string for the name,
+i.e, new_item("", nullptr);
+Instead use new_item(" ", nullptr); // one blank char
+-
+
+input
+-
+use set_escdelay() to make reacting to the ESC key faster
+This sets the max time ncurses waits for other control codes to follow the initial ESC. Default is 1000ms.
+set_escdelay(25);  // 25 miliseconds
+
+
+
+mouse
+-
+To allow the Terminal to report mouse movement to ncurses you must set the terminal mode to 1003.
+
+e.g.:
+    initscr();
+    ...
+    // Enable any-event mouse tracking (Mode 1003)
+    // NOTE: you must print and flush after initscr() and mousemask().
+    mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION, nullptr);
+    printf("\033[?1003h");
+    flush(stdout);
+    ...
+    // disable mouse-tracking terminal mode before exiting.
+    // NOTE: Must print before endwin()
+    printf("\033[?1003l");
+    fflush(stdout);
+    endwin();
+
+-
+to get mouse events you must use:
+keypad(window, true); // enables keypad tracking AND mouse events
+
+
+
+optimizations
+-
+to minimize screen redrawing, use  wnoutrefresh() on all windows that need updating, then call doupdate() once.
+wnoutrefresh() writes each window to newscr.
+doupdate() writes newscr to curscrn and the Terminal.
+
+-
+set repeatchar to nullptr:
+    if (repeat_char) {
+        repeat_char = nullptr;
+    }
+This is an optimization that tries to encode repeated characters more compactly,
+but it breaks with utf-8 strings. On a modern computer it offers no performance benefit
+but introduces instability.

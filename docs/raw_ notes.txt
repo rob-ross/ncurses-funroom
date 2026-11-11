@@ -1,4 +1,4 @@
-ncurses chtype is just `typedef unsigned chtype;`
+
 
 //3 x 3 terminal square, taller than wide
 XXX

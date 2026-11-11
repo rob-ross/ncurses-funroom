@@ -1,0 +1,17 @@
+       cc [flags] sourcefiles -lpanel -lncurses
+
+       PANEL *new_panel(WINDOW *win)
+       int bottom_panel(PANEL *pan)
+       int top_panel(PANEL *pan)
+       int show_panel(PANEL *pan)
+       void update_panels();
+       int hide_panel(PANEL *pan)
+       WINDOW *panel_window(const PANEL *pan)
+       int replace_panel(PANEL *pan, WINDOW *window)
+       int move_panel(PANEL *pan, int starty, int startx)
+       int panel_hidden(const PANEL *pan)
+       PANEL *panel_above(const PANEL *pan)
+       PANEL *panel_below(const PANEL *pan)
+       int set_panel_userptr(PANEL *pan, const void *ptr)
+       const void *panel_userptr(const PANEL *pan)
+       int del_panel(PANEL *pan)

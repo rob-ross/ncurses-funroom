@@ -1,9 +1,12 @@
 # Makefile for misc .c src Files
 
-CC = clang
-CFLAGS = -std=c23 -g
-LIBS=-lmenu -lpanel -lncurses
+SANFLAGS = -fsanitize=address -fsanitize=leak
 
+
+CC = clang
+CFLAGS = -std=c23 -g ${SANFLAGS}
+LIBS=-lmenu -lpanel -lncurses
+LDFLAGS += $(SANFLAGS)
 
 SRC_DIR = .
 EXE_DIR = ../../out/menus/
