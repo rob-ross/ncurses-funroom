@@ -9,6 +9,20 @@ COLOR is the count of supported colors on the terminal.
 rgb values go from 0 - 1000... for reasons?
 To convert from v1(0,255) -> v2(0, 1000)
 v1 * 255 / 1000?
+
+Every cell in an ncurses window (WINDOW) contains:
+1. A character code (ASCII or wide character).
+2. An attribute bitmask (e.g., A_BOLD, A_REVERSE, A_UNDERLINE).
+3. A color-pair index (foreground/background color definition).
+At any given moment, a WINDOW maintains two internal styling states:
+• Current Window Attributes (_attrs): modified by wattron(), wattroff(), wattrset().
+• Background Rendition (_bkgd): a chtype containing a default character, attributes, and a color pair,
+    modified by wbkgd() or wbkgdset().
+
+
+
+
+
 -
 ncurses chtype is just `typedef unsigned chtype;`
 -

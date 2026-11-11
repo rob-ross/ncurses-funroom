@@ -41,12 +41,13 @@
 // top-left coordinate of 2D Map view in screen coordinates
 constexpr int VIEW_2D_SCR_X = 2;
 constexpr int VIEW_2D_SCR_Y = 2;
-constexpr int VIEW_2D_SCR_WIDTH  = 59;
-constexpr int VIEW_2D_SCR_HEIGHT = 21;
+// constexpr int VIEW_2D_SCR_WIDTH  = 59;
+// constexpr int VIEW_2D_SCR_HEIGHT = 21;
 
-// Define unique index handles for color configurations
-#define COLOR_WALL 1
-#define COLOR_TEXT 2
+
+constexpr int VIEW_2D_SCR_WIDTH  = 54;
+constexpr int VIEW_2D_SCR_HEIGHT = 18;
+
 
 // in this order to make it easy to update position modulo 4
 typedef enum { DIR_NORTH = 0, DIR_EAST = 1, DIR_SOUTH = 2, DIR_WEST = 3 } Direction;
@@ -142,6 +143,12 @@ typedef struct {
 
 typedef enum : int { FS_LEFT = 0, FS_CENTER = 1, FS_RIGHT = 2 } FrustumLane;
 
+typedef struct {
+    bool north; // True if map content exists above the viewport
+    bool east;  // True if map content exists to the right of the viewport
+    bool south; // True if map content exists below the viewport
+    bool west;  // True if map content exists to the left of the viewport
+} ViewportScrollState;
 
 // temp globals for now, initialized by map loader
 Coord start_location;
@@ -962,9 +969,141 @@ void render_3D_view2(int right_panel_x, int viewport_y) {
 const int col_scale = 5; // we scale the grid square up by this amount for cols
 const int row_scale = 3;
 
+ViewportScrollState get_viewport_scroll_state(const Map2DViewport *vp, WINDOW *map_pad) {
+    int pad_rows = 0, pad_cols = 0;
+    int vp_rows = 0, vp_cols = 0;
+
+    getmaxyx(map_pad, pad_rows, pad_cols);
+    getmaxyx(vp->view_win, vp_rows, vp_cols);
+
+    ViewportScrollState state;
+
+    // North (Top): We are scrolled down into the pad if map_pos.y > 0
+    state.north = (vp->map_pos.y > 0);
+
+    // West (Left): We are scrolled right into the pad if map_pos.x > 0
+    state.west  = (vp->map_pos.x > 0);
+
+    // South (Bottom): Content remains below if the bottom edge of the viewport
+    // hasn't reached the bottom edge of the pad
+    state.south = (vp->map_pos.y + vp_rows < pad_rows - 1 );
+
+    // East (Right): Content remains to the right if the right edge of the viewport
+    // hasn't reached the right edge of the pad
+    state.east  = (vp->map_pos.x + vp_cols < pad_cols - 1);
+
+    return state;
+}
+
+void draw_viewport_borders(Map2DViewport * vp, ViewportScrollState scroll) {
+    WINDOW *vp_border = vp->border_win;
+    int border_rows, border_cols;
+    getmaxyx(vp_border, border_rows, border_cols);
+
+    log_window_size(vp_border, "vp_border");
+
+    // vertical
+    //  ⎛
+    //  ⎠
+    //  ⎞
+    //  ⎝
+    //  ⎛
+    //  ⎠
+    //  ⎞
+    //  ⎝
+    //
+    //  ⎞
+    //  ⎠
+    //  ⎛
+    //  ⎝
+    // horizontal
+    //  ╭╯╰╮╭╯╰╮   ╯╰⠒╯⠢  ◠◡  ◜  ◝   ◞   ◟
+
+
+    // interesting border chars: ∞ ═
+    const cchar_t horiz_cc = { .chars = L'⠶'};  // ═ ∞ ᛟ ᛯ ☰ ⠶
+    const cchar_t vert_cc  = { .chars = L'⣿'};  // ║ ᛝ ᛥ  ⎞  ⎝ ╳ ⩆  ⣿
+    const cchar_t tl_cc    = { .chars = L'⣶'};  // ╔
+    const cchar_t tr_cc    = { .chars = L'⣶'};  // ╗
+    const cchar_t bl_cc    = { .chars = L'⠿'};  // ╚
+    const cchar_t br_cc    = { .chars = L'⠿'};  // ╝
+    wborder_set(vp_border,  &vert_cc, &vert_cc, &horiz_cc, &horiz_cc, &tl_cc, &tr_cc, &bl_cc, &br_cc);
+
+
+    // we manually draw the border now
+
+    // From Miscellaneous Technical Block
+    const char *side_border_chars[4] = {"⎛","⎠","⎞","⎝"};
+    // From Box Drawing Block ╭   ╮   ╯ ╰
+    // const char *horiz_border_chars[4] = {"╭","╯","╰","╮"};
+    const char *horiz_border_chars[4] = {"◠","◡","◠","◡"};
+
+
+    // vertical borders
+    // for (int row = 0; row < scr_height; row++) {
+    //     int left_start_index  = 2;
+    //     int right_start_index = 0;
+    //     const char *left_row_char  = side_border_chars[(row + left_start_index) % 4];
+    //     const char *right_row_char = side_border_chars[(row + right_start_index) % 4];
+    //     mvwaddstr(vp_border, row, 0,            left_row_char);
+    //     mvwaddstr(vp_border, row, scr_width - 1,right_row_char );
+    // }
+    // horizontal border
+    // for (int col = 0; col < border_cols; col++) {
+    //     int top_start_index  = 0;
+    //     int bottom_start_index = 1;
+    //     const char *top_row_char  = horiz_border_chars[(col + top_start_index) % 4];
+    //     const char *bottom_row_char = horiz_border_chars[(col + bottom_start_index) % 4];
+    //     mvwaddstr(vp_border, 0,              col, top_row_char);
+    //     mvwaddstr(vp_border, border_rows - 1, col, bottom_row_char );
+    // }
+
+
+    // Left border:
+    if (scroll.west) {
+        // e.g., draw left-arrow glyphs or dashed border along the left
+        for (int row = 1; row < border_rows - 1; row++) {
+            int left_start_index  = 2;
+            // const char *left_row_char  = side_border_chars[(row + left_start_index) % 4];
+            mvwaddstr(vp_border, row, 0, "╳");
+        }
+    }
+
+    // Right border:
+    if (scroll.east) {
+        // e.g., draw right-arrow glyphs or dashed border along the right
+        for (int row = 1 ; row < border_rows - 1; row++) {
+            int right_start_index = 0;
+            // const char *right_row_char = side_border_chars[(row + right_start_index) % 4];
+            mvwaddstr(vp_border, row, border_cols - 1, "╳" );
+        }
+    }
+
+    // Top border: show continuation indicators or different glyphs if scroll.north is true
+    if (scroll.north) {
+        // e.g., draw up-arrow glyphs or dashed border along the top
+        for (int col = 0; col < border_cols; col++) {
+            int top_start_index  = 0;
+            const char *top_row_char  = horiz_border_chars[(col + top_start_index) % 4];
+            mvwaddstr(vp_border, 0, col, top_row_char);
+        }
+    }
+
+    // Bottom border:
+    if (scroll.south) {
+        // e.g., draw down-arrow glyphs or dashed border along the bottom
+        for (int col = 0; col < border_cols; col++) {
+            int bottom_start_index = 1;
+            const char *bottom_row_char = horiz_border_chars[(col + bottom_start_index) % 4];
+            mvwaddstr(vp_border, border_rows - 1, col, bottom_row_char );
+        }
+    }
+
+
+}
+
 void render_2D_map2(WINDOW * map_pad, MapData * game_map) {
     // todo (rob) pass in the WINDOW (pad) into which to render
-    // for now we are using the global _2D_view_window.
 
     // todo (rob) the initial implementation will render the entire 2D map into the view every time. The caller
     // is responsible for using this pad to draw to the screen. This allows us to have a much larger map than can
@@ -1101,46 +1240,42 @@ void render_2D_map2(WINDOW * map_pad, MapData * game_map) {
         }
     }
 
-
-    // todo (rob) move this into the render_game function
-    // Draw Player Avatar
-    // utf-8 implementation
-    // char *utf8_avatars[4] = {"▲","▶","▼","◀"};
-    // mvwaddstr( map_pad,
-    //     player.pos.y * ( row_scale -1 ) + 1,
-    //     (player.pos.x * ( col_scale - 1 )) + 2,
-    //     utf8_avatars[player.dir]
-    // );
-
-    // Draw Player Avatar
-    // Wide-Char implementation
-
-    /*// const uint32_t avatar_unicode[] = { L'▲', L'▶', L'▼', L'◀'};
-
-    const cchar_t new_avatar_chars[] = {
-        { .chars = L'▲'},
-         { .chars = L'▶'},
-        { .chars = L'▼'},
-        { .chars = L'◀'}
-    };
-    mvadd_wch(
-        left_panel_y + player.pos.y * ( row_scale -1 ) + 1,
-        left_panel_x + (player.pos.x * ( col_scale - 1 )) + 2,
-        &new_avatar_chars[player.dir]
-    );*/
-
-    // Draw Player Avatar
-    // ASCII Char Implementation
-    /*
-    char avatars[] = {'^', '>', 'v', '<' };
-    mvaddch(
-        left_panel_y + player.pos.y * ( row_scale -1 ) + 1,
-        left_panel_x + (player.pos.x * ( col_scale - 1 )) + 2,
-        avatars[player.dir]
-    );
-    */
-
     // log_window_contents(map_pad);
+
+}
+
+void init_2D_view(GameState *gs, const int scr_x, const int scr_y, const int scr_width, const int scr_height) {
+    // init window pad to contain the static rendered 2D map
+    write_to_logfile("-- init_2D_view -- ");
+    MapData *game_map = &gs->game_map;
+    fprintf(log_file, "game_map: r:%d, c:%d\n", game_map->rows, game_map->cols);
+
+
+    Static2DMap static_map = {.mrows = scr_height, .mcols = scr_width};
+    WINDOW * map_pad =  newpad(game_map->rows * (row_scale - 1) + 1, game_map->cols * (col_scale - 1) + 1);
+    log_window_size(map_pad, "map_pad");
+
+    static_map.map_pad = map_pad;
+    //draw static map elements in the pad
+    render_2D_map2(map_pad, game_map);
+    gs->static_map = static_map;
+
+    Map2DViewport vp = { .vrows =  scr_height - 2, .vcols = scr_width - 2};
+    WINDOW *vp_border = newwin(scr_height, scr_width, scr_y, scr_x );
+
+
+
+    WINDOW *vp_win = derwin(vp_border, scr_height - 2, scr_width -  2, 1, 1);
+    log_window_size(vp_win, "vp_win");
+
+    vp.border_win = vp_border;
+    vp.view_win = vp_win;
+    gs->map2D_view = vp;
+
+    ViewportScrollState scroll = get_viewport_scroll_state(&vp, map_pad);
+    draw_viewport_borders( &vp, scroll);
+
+    write_to_logfile("-- end init_2D_view -- ");
 
 }
 
@@ -1244,6 +1379,8 @@ void move_player( GameState  * gs, int step) {
     }
 }
 
+
+
 void render_game(GameState * gs) {
     // clear();
     // erase();
@@ -1272,19 +1409,7 @@ void render_game(GameState * gs) {
 
     // fprintf(log_file, "render_game: viewport:%p r:%d c%d, Map2DViewport r:%d, c:%d\n", vp_win, vwin_rows, vwin_cols, vp->vrows, vp->vcols);
     fflush(log_file);
-/*
-  int copywin(
-                const WINDOW *srcwin,
-                WINDOW *dstwin,
-                int sminrow,
-                int smincol,
-                int dminrow,
-                int dmincol,
-                int dmaxrow,
-                int dmaxcol,
-                int overlay
-   );
- */
+
 
     // log_window_contents(map_pad, "source window: map_pad"); // see if we copied successfully to the viewport window
     int map_pad_rows;
@@ -1297,7 +1422,7 @@ void render_game(GameState * gs) {
     // todo temp debug (rob) when the viewport scrolls at the bottom it leaves artifacts. A few dots on the bottom row.
     // this is to try to fix that.
     // this glitch doesn't happen in Ghosttty. Just MacOS Terminal app.
-    werase(vp->view_win);
+    werase(vp->view_win);  // didn't fix it
 
     int result = copywin( map_pad, vp->view_win, vp->map_pos.y, vp->map_pos.x, 0, 0, max_dest_rows - 1, max_dest_cols - 1, false);
 
@@ -1312,6 +1437,10 @@ void render_game(GameState * gs) {
         utf8_avatars[gs->current.dir]
     );
 
+    // draw borders around 2D viewport to indicate the map extends in that direction
+    ViewportScrollState scroll = get_viewport_scroll_state(vp, map_pad);
+    draw_viewport_borders(vp, scroll);
+
     // fprintf(log_file, "result: %d = copywin(src: %p, des:%p, 0, 0, 0, 0, max_dest_rows:%d, max_dest_cols%d, false)\n", result, map_pad, vp->view_win,  max_dest_rows, max_dest_cols );
     // fprintf(log_file, "result of copywin == %d, man_pad:%p, view_win:%p\n", result, map_pad, vp->view_win);
 
@@ -1322,90 +1451,6 @@ void render_game(GameState * gs) {
 
 
     wrefresh(vp->border_win);
-
-}
-
-void init_2D_view(GameState *gs, const int scr_x, const int scr_y, const int scr_width, const int scr_height) {
-    // init window pad to contain the static rendered 2D map
-    write_to_logfile("-- init_2D_view -- ");
-    MapData *game_map = &gs->game_map;
-    fprintf(log_file, "game_map: r:%d, c:%d\n", game_map->rows, game_map->cols);
-
-
-    Static2DMap static_map = {.mrows = scr_height, .mcols = scr_width};
-    WINDOW * map_pad =  newpad(game_map->rows * (row_scale - 1) + 1, game_map->cols * (col_scale - 1) + 1);
-    log_window_size(map_pad, "map_pad");
-
-    static_map.map_pad = map_pad;
-    //draw static map elements in the pad
-    render_2D_map2(map_pad, game_map);
-    gs->static_map = static_map;
-
-    Map2DViewport vp = { .vrows =  scr_height - 2, .vcols = scr_width - 2};
-    WINDOW *vp_border = newwin(scr_height, scr_width, scr_y, scr_x );
-
-    log_window_size(vp_border, "vp_border");
-
-    // vertical
-    //  ⎛
-    //  ⎠
-    //  ⎞
-    //  ⎝
-    //  ⎛
-    //  ⎠
-    //  ⎞
-    //  ⎝
-    // horizontal
-    //  ╭╯╰╮╭╯╰╮   ╯╰⠒╯⠢  ◠◡  ◜  ◝   ◞   ◟
-
-
-    // interesting border chars: ∞ ═
-    const cchar_t horiz_cc = { .chars = L'⠶'};  // ═ ∞ ᛟ ᛯ ☰ ⠶
-    const cchar_t vert_cc  = { .chars = L'⣿'};  // ║ ᛝ ᛥ  ⎞  ⎝ ╳ ⩆  ⣿
-    const cchar_t tl_cc    = { .chars = L'⣶'};  // ╔
-    const cchar_t tr_cc    = { .chars = L'⣶'};  // ╗
-    const cchar_t bl_cc    = { .chars = L'⠿'};  // ╚
-    const cchar_t br_cc    = { .chars = L'⠿'};  // ╝
-    wborder_set(vp_border,  &vert_cc, &vert_cc, &horiz_cc, &horiz_cc, &tl_cc, &tr_cc, &bl_cc, &br_cc);
-
-
-    // we manually draw the border now
-
-    // From Miscellaneous Technical Block
-    const char *side_border_chars[4] = {"⎛","⎠","⎞","⎝"};
-    // From Box Drawing Block ╭   ╮   ╯ ╰
-    // const char *horiz_border_chars[4] = {"╭","╯","╰","╮"};
-    const char *horiz_border_chars[4] = {"◠","◡","◠","◡"};
-
-
-    // vertical borders
-    // for (int row = 0; row < scr_height; row++) {
-    //     int left_start_index  = 2;
-    //     int right_start_index = 0;
-    //     const char *left_row_char  = side_border_chars[(row + left_start_index) % 4];
-    //     const char *right_row_char = side_border_chars[(row + right_start_index) % 4];
-    //     mvwaddstr(vp_border, row, 0,            left_row_char);
-    //     mvwaddstr(vp_border, row, scr_width - 1,right_row_char );
-    // }
-    // horizontal border
-    // for (int col = 0; col < scr_width; col++) {
-    //     int top_start_index  = 0;
-    //     int bottom_start_index = 1;
-    //     const char *top_row_char  = horiz_border_chars[(col + top_start_index) % 4];
-    //     const char *bottom_row_char = horiz_border_chars[(col + bottom_start_index) % 4];
-    //     mvwaddstr(vp_border, 0,              col, top_row_char);
-    //     mvwaddstr(vp_border, scr_height - 1, col, bottom_row_char );
-    // }
-
-
-    WINDOW *vp_win = derwin(vp_border, scr_height - 2, scr_width -  2, 1, 1);
-    log_window_size(vp_win, "vp_win");
-
-    vp.border_win = vp_border;
-    vp.view_win = vp_win;
-    gs->map2D_view = vp;
-
-    write_to_logfile("-- end init_2D_view -- ");
 
 }
 
@@ -1450,9 +1495,10 @@ int main(int argc, char *argv[]) {
     // Inside main() after initscr():
     if (has_colors()) {
         start_color();
-        // Pair 1: Text color doesn't matter much since we are filling the background
-        init_pair(COLOR_WALL, COLOR_BLACK, COLOR_WHITE); // White walls
-        init_pair(COLOR_TEXT, COLOR_WHITE, COLOR_BLACK); // Normal text
+        // Enables -1 as the terminal's default foreground and background colors
+        use_default_colors();
+        // Now COLOR_PAIR(0) and pairs defined with -1 will respect
+        // your Terminal profile's custom dark gray background.
     }
 
     //init GameState
