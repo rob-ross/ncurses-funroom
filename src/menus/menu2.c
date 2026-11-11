@@ -345,8 +345,8 @@ MenuBar *init_menus(MenuBar *mb, WINDOW* menubar_win) {
         {"-", ""}
     };
     MENU* help_menu = create_menu(
-        SIZEOF_ARRAY(view_menu_item_data),
-        view_menu_item_data,
+        SIZEOF_ARRAY(help_menu_item_data),
+        help_menu_item_data,
         (Coordinate){ .x =  mb->menu_title_x_positions[4].start - 1, .y = mb_win_y + 1  } );
 
 
