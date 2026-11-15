@@ -13,14 +13,12 @@ EXES = \
 	${EXE_DIR}/char_displayer \
 	${EXE_DIR}/manual_term_escapes \
 	${EXE_DIR}/simple_color \
-	${EXE_DIR}/temp_debug_map_file \
 
 
 
 DATA_FILES = \
 	${EXE_DIR}/Blocks.txt \
 	${EXE_DIR}/EastAsianWidth.txt \
-	${EXE_DIR}/map3.txt \
 
 OBJS = $(patsubst ${EXE_DIR}/%,${EXE_DIR}/%.o,${EXES})
 

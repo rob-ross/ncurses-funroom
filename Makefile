@@ -3,17 +3,17 @@
 SRC_DIR=src
 
 all:
-	cd ${SRC_DIR}/animate 	&& $(MAKE)
-	cd ${SRC_DIR}/misc      && $(MAKE)
-	cd ${SRC_DIR}/unicode	&& $(MAKE)
-	cd ${SRC_DIR}/windows	&& $(MAKE)
-	cd ${SRC_DIR}/gookin	&& $(MAKE)
-	cd ${SRC_DIR}/color	    && $(MAKE)
-	cd ${SRC_DIR}/mazes	    && $(MAKE)
+	cd ${SRC_DIR}/animate 	  && $(MAKE)
+	cd ${SRC_DIR}/misc        && $(MAKE)
+	cd ${SRC_DIR}/unicode	  && $(MAKE)
+	cd ${SRC_DIR}/windows	  && $(MAKE)
+	cd ${SRC_DIR}/gookin	  && $(MAKE)
+	cd ${SRC_DIR}/color	      && $(MAKE)
+	cd ${SRC_DIR}/mazes	      && $(MAKE)
 	cd ${SRC_DIR}/soft_labels && $(MAKE)
-	cd ${SRC_DIR}/menus && $(MAKE)
-
-
+	cd ${SRC_DIR}/menus       && $(MAKE)
+	cd ${SRC_DIR}/keypress    && $(MAKE)
+	cd ${SRC_DIR}/forms       && $(MAKE)
 
 
 	@echo
@@ -24,12 +24,15 @@ all:
 	@echo "*********************************************"
 	@echo
 clean:
-	cd ${SRC_DIR}/animate  && $(MAKE) clean
-	cd ${SRC_DIR}/misc     && $(MAKE) clean
-	cd ${SRC_DIR}/unicode  && $(MAKE) clean
-	cd ${SRC_DIR}/windows  && $(MAKE) clean
-	cd ${SRC_DIR}/gookin   && $(MAKE) clean
-	cd ${SRC_DIR}/color	   && $(MAKE) clean
-	cd ${SRC_DIR}/mazes	   && $(MAKE) clean
+	cd ${SRC_DIR}/animate     && $(MAKE) clean
+	cd ${SRC_DIR}/misc        && $(MAKE) clean
+	cd ${SRC_DIR}/unicode     && $(MAKE) clean
+	cd ${SRC_DIR}/windows     && $(MAKE) clean
+	cd ${SRC_DIR}/gookin      && $(MAKE) clean
+	cd ${SRC_DIR}/color	      && $(MAKE) clean
+	cd ${SRC_DIR}/mazes	      && $(MAKE) clean
 	cd ${SRC_DIR}/soft_labels && $(MAKE) clean
-	cd ${SRC_DIR}/menus && $(MAKE)		clean
+	cd ${SRC_DIR}/menus       && $(MKE)	 clean
+	cd ${SRC_DIR}/keypress    && $(MAKE) clean
+	cd ${SRC_DIR}/forms       && $(MAKE) clean
+

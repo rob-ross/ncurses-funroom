@@ -7,7 +7,7 @@
 #include <ncurses.h>
 #include <locale.h>
 
-#define ctrl(x) ( (x) & 0x1F)
+#define CTRL(x) ( (x) & 0x1F)
 
 void print_state(bool raw_mode, bool keypad_mode, int row) {
     wmove(stdscr, row, 0);
@@ -91,7 +91,7 @@ int main() {
         // shows how we can differentiate between a key press and one with control + keypress
         if (c == 'a') {
             mvwprintw(stdscr, 11, 0, "You pressed 'a'");
-        } else if (c == ctrl('a')) {
+        } else if (c == CTRL('a')) {
             mvwprintw(stdscr, 11, 0, "You pressed '^A'");
         }
 

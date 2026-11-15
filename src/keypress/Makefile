@@ -1,10 +1,15 @@
 # Makefile for misc .c src Files
 
+SANFLAGS = -fsanitize=address -fsanitize=leak
+
 CC = clang
-CFLAGS = -std=c23 -g
+COMMON_DIR = ../common
+CFLAGS = -std=c23 -g  ${SANFLAGS} -I${COMMON_DIR}
 LIBS=-lncurses
+LDFLAGS += $(SANFLAGS)
 
-
+COMMON_SRCS = $(wildcard $(COMMON_DIR)/*.c)
+COMMON_OBJS = $(patsubst $(COMMON_DIR)/%.c,$(EXE_DIR)/%.o,$(COMMON_SRCS))
 SRC_DIR = .
 EXE_DIR = ../../out/keypress/
 
@@ -27,11 +32,14 @@ ${EXE_DIR}:
 	mkdir -p ${EXE_DIR}
 
 # Rule to link each executable from its matching object file
-${EXE_DIR}/%: ${EXE_DIR}/%.o
-	${CC} ${LDFLAGS} -o $@ $< ${LIBS}
+${EXE_DIR}/%: ${EXE_DIR}/%.o ${COMMON_OBJS}
+	${CC} ${LDFLAGS} -o $@ $^ ${LIBS}
 
 # Rule to compile each .c file into a .o file in EXE_DIR
 ${EXE_DIR}/%.o: ${SRC_DIR}/%.c | ${EXE_DIR}
+	${CC} ${CFLAGS} -o $@ -c $<
+
+${EXE_DIR}/%.o: ${COMMON_DIR}/%.c | ${EXE_DIR}
 	${CC} ${CFLAGS} -o $@ -c $<
 
 clean:

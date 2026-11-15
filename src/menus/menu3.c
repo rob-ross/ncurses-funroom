@@ -19,6 +19,7 @@
 #include <term.h>
 #include <unistd.h>
 #include <signal.h>
+
 /*
  *
 *+-------------------------------------------------------------+  <- Top Bar Window (Static)
@@ -101,10 +102,10 @@ constexpr unsigned CP_MENU_BODY_DISABLED = COLOR_PAIR(CPI_MENU_BODY_DISABLED);
 constexpr unsigned CP_MAIN_WIN = COLOR_PAIR(CPI_MAIN_WIN);
 
 
-#define KEY_ESC 27 // 0x1B
+#define KEY_ESC 27 // 0x1B, octal 033
 
 #define SIZEOF_ARRAY(a) sizeof((a)) / sizeof( (a)[0] )
-#define ctrl(x) ( (x) & 0x1F)
+// #define CTRL(x) ( (x) & 0x1F)
 
 
 WINDOW* main_win = nullptr;
@@ -139,7 +140,7 @@ constexpr int MENU_DESC_MAX_LEN = 20;
 typedef struct {
     const char name[MENU_NAME_MAX_LEN + 1];
     const char desc[MENU_DESC_MAX_LEN + 1];
-    unsigned control_shortcut; // currently only for ctrl+key combinations
+    unsigned control_shortcut; // currently only for CTRL+key combinations
 } NameDesc;
 
 
@@ -328,7 +329,7 @@ MenuBar *init_menus(MenuBar *mb, WINDOW* menubar_win) {
          { "-", ""},
         {"Settings...", "⌘,"},
         { "-", ""},
-        {"Quit MenuApp", "⌃Q", ctrl('q') },
+        {"Quit MenuApp", "⌃Q", CTRL('q') },
     };
     MENU * app_menu = create_menu(
         SIZEOF_ARRAY(app_menu_item_data),
@@ -336,10 +337,10 @@ MenuBar *init_menus(MenuBar *mb, WINDOW* menubar_win) {
         (Coordinate){ .x =  mb->menu_title_x_positions[0].start - 1, .y = mb_win_y + 1 });
 
     NameDesc file_menu_item_data[] = {
-        {"New", "⌃N", ctrl('n')},
-         {"Open...", "⌃O", ctrl('o')},
+        {"New", "⌃N", CTRL('n')},
+         {"Open...", "⌃O", CTRL('o')},
         {"Open Recent", ">"},
-        {"Save", "⌃S", ctrl('s') },
+        {"Save", "⌃S", CTRL('s') },
     };
     MENU * file_menu = create_menu(
         SIZEOF_ARRAY(file_menu_item_data),
@@ -347,7 +348,7 @@ MenuBar *init_menus(MenuBar *mb, WINDOW* menubar_win) {
         (Coordinate){ .x =  mb->menu_title_x_positions[1].start - 1, .y = mb_win_y + 1 });
 
     NameDesc edit_menu_item_data[] = {
-        {"Undo", "⌃Z", ctrl('z')},
+        {"Undo", "⌃Z", CTRL('z')},
         {"Redo", ""},
         {"-", "" }, // line separator
         {"Search in selection","⌃⌥E"},
@@ -708,8 +709,15 @@ void process_menubar_click(MenuBar *mb,  MEVENT event) {
 void cleanup_terminal() {
     if (!g_terminal_captured) return;
 
-    // Direct write of reset sequences to avoid stdio buffer state
-    const char reset_seq[] = "\033[?1003l\033[?1002l\033[?1000l\033[?25h\033[0m";
+    // Direct write of reset sequences to avoid stdio buffer state:
+    // - \033[?2004l: Disable Bracketed Paste Mode
+    // - \033[?1003l: Disable Any-Event Mouse Tracking
+    // - \033[?1002l: Disable Button-Motion Mouse Tracking
+    // - \033[?1000l: Disable Normal Mouse Tracking
+    // - \033[?25h:   Ensure cursor is visible
+    // - \033[0m:     Reset all text rendition attributes
+    const char reset_seq[] = "\033[?2004l\033[?1003l\033[?1002l\033[?1000l\033[?25h\033[0m";
+    write(STDOUT_FILENO, reset_seq, sizeof(reset_seq) - 1);
     write(STDOUT_FILENO, reset_seq, sizeof(reset_seq) - 1);
 
     if (!isendwin()) {
@@ -939,7 +947,7 @@ int main() {
 
         // todo (rob) before we quit we must check state to see if there are unsaved changes to any documents
 
-    } while ( c != ctrl('q'));
+    } while ( c != CTRL('q'));
 
     // Disable any-event mouse tracking (Mode 1003)
     // NOTE: This must come BEFORE endwin()
