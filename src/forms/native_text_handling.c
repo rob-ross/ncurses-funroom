@@ -39,7 +39,10 @@ constexpr int KEY_CTRL_W = CTRL('W'); // cut previous word
 constexpr int KEY_ALT_W   = 702; // copy previous word
 constexpr int KEY_CTRL_Y = CTRL('Y'); // paste/yank
 
+constexpr int KEY_CTRL_C = CTRL('C'); // Copy current selection
+constexpr int KEY_CTRL_X = CTRL('X'); // Cut current selection
 constexpr int KEY_CTRL_V = CTRL('V'); // paste from app clipboard
+constexpr int KEY_ALT_A  = 703; // select all
 
 constexpr int KEY_PASTE_START = 0x703;
 constexpr int KEY_PASTE_END   = 0x704;
@@ -67,12 +70,18 @@ constexpr int TEXT_BUFFER_CAPACITY = 256;
 //
 // selection is -1,-1 if there is no text selection in the model, otherwise it is the half-open start,end range of the buffer
 // scroll_offset is the buffer position of the leftmost buffer character displayed in the viewport.
+// When the cursor is a vertical line, the position of the cursor indicates the cell just before where the next
+// insertion will take place. If the cursor is a block, think of the left vertical edge of the block as the vertical
+// cursor indicator. Text will be added after this position. It will appear that the char in the block is replaced and
+// all text from that position is shifted right by one position. But really text is being added at that pos and the
+// rest of the text right shifted by one position.
 
 typedef struct {
     int capacity;
     int size;
     int pos; // range [0, size]
     HalfOpenRange selection; // populated when text is selected
+    int selection_anchor;
     int scroll_offset; // First character visible in viewport
     wchar_t buffer[TEXT_BUFFER_CAPACITY];
     wchar_t kill_ring[TEXT_BUFFER_CAPACITY]; // App-level cut/copy buffer
@@ -131,6 +140,54 @@ void drain_escape_sequence(WINDOW *win) {
 void reset_selection_state(TextInputState * state) {
     state->selection.start = -1;
     state->selection.end   = -1;
+    state->selection_anchor = -1;
+}
+
+static void update_selection(TextInputState *state, int new_pos) {
+    if (state->selection_anchor < 0) {
+        state->selection_anchor = state->pos;
+    }
+
+    state->pos = new_pos;
+
+    state->selection.start = state->selection_anchor < state->pos
+        ? state->selection_anchor
+        : state->pos;
+    state->selection.end = state->selection_anchor > state->pos
+        ? state->selection_anchor
+        : state->pos;
+
+    if (state->selection.start == state->selection.end) {
+        reset_selection_state(state);
+    }
+}
+
+// Copy current selection to internal kill_ring buffer and System clipboard
+int copy_selection(TextInputState *state) {
+    if (state->selection.start == - 1) return 0;
+
+    int copy_len = state->selection.end - state->selection.start;
+    if (copy_len > 0) {
+        wmemcpy(state->kill_ring, &state->buffer[state->selection.start], copy_len);
+        state->kill_ring[copy_len] = L'\0';
+        state->kill_size = copy_len;
+        // Synchronize with OS clipboard
+        copy_to_system_clipboard(state->kill_ring, copy_len);
+    }
+    return copy_len;
+}
+
+// remove the current selection from the state buffer and move the remaining characters up
+int delete_selection(TextInputState *state) {
+    if (state->selection.start == - 1) return 0;
+    int cut_len = state->selection.end - state->selection.start;
+    if (cut_len > 0) {
+        wmemmove(&state->buffer[state->selection.start],
+                 &state->buffer[state->selection.end],
+                 state->size - state->selection.start + 1);
+        state->size -= cut_len;
+    }
+    return cut_len;
 }
 
 void text_input_controller(WINDOW *input_win, TextInputState *state, int char_type, wint_t ch) {
@@ -159,22 +216,28 @@ void text_input_controller(WINDOW *input_win, TextInputState *state, int char_ty
             break;
         }
 
-            // add the previous character to current selection
+            // Shift-Left arrow : add the previous character to current selection
         case KEY_SLEFT: {
             logfile_printf("\nGot KEY_SLEFT. pos:%d, sel: [%d, %d)\n", state->pos, state->selection.start, state->selection.end);
-            if ( state->pos > 0 ) {
-                if (state->selection.end == -1 ) {
-                    // start of new selection
-                    state->selection.end = state->pos;
-                    state->selection.start = --state->pos;
-                }  else if (state->pos > state->selection.start) {
-                    //shrinking an existing selection
-                    state->selection.end = --state->pos;
-                }else {
-                    // expanding an existing selection
-                    state->selection.start = --state->pos;
-                }
+
+            if (state->pos > 0) {
+                update_selection(state, state->pos - 1);
             }
+
+            // if ( state->pos > 0 ) {
+            //     if (state->selection.end == -1 ) {
+            //         // start of new selection
+            //         state->selection.end = state->pos;
+            //         state->selection.start = --state->pos;
+            //     }  else if (state->pos > state->selection.start) {
+            //         //shrinking an existing selection
+            //         state->selection.end = --state->pos;
+            //     }else {
+            //         // expanding an existing selection
+            //         state->selection.start = --state->pos;
+            //     }
+            // }
+
             logfile_printf("\nAfter KEY_SLEFT. pos:%d, sel: [%d, %d)\n", state->pos, state->selection.start, state->selection.end);
 
             break;
@@ -183,29 +246,34 @@ void text_input_controller(WINDOW *input_win, TextInputState *state, int char_ty
             // forward one character
         case KEY_CTRL_F:
         case KEY_RIGHT: {
-            // todo make utf-8 aware
             if ( state->pos < state->size ) state->pos++;
             reset_selection_state(state);
             break;
         }
 
-            // add next character to current selection
+            // Shift-Right arrow: add next character to current selection
         case KEY_SRIGHT: {
             logfile_printf("\nGot KEY_SRIGHT. pos:%d, sel: [%d, %d)\n", state->pos, state->selection.start, state->selection.end);
 
-            if (state->pos < state->size) {
-                if (state->selection.end == -1 ) {
-                    // start of new selection
-                    state->selection.start = state->pos;
-                    state->selection.end = ++state->pos;
-                } else if (state->pos < state->selection.end ) {
-                    //shrinking an existing selection
-                    state->selection.start = ++state->pos;
-                } else {
-                    // expanding an existing selection
-                    state->selection.end = ++state->pos;
-                }
+            if (state->pos < state->size ) {
+                update_selection(state, state->pos + 1);
             }
+
+            // if (state->pos < state->size) {
+            //     if (state->selection.end == -1 ) {
+            //         // start of new selection
+            //         state->selection.start = state->pos;
+            //         state->selection.end = ++state->pos;
+            //     } else if (state->pos < state->selection.end ) {
+            //         //shrinking an existing selection
+            //         state->selection.start = ++state->pos;
+            //     } else {
+            //         // expanding an existing selection
+            //         state->selection.end = ++state->pos;
+            //     }
+            // }
+
+
             logfile_printf("\nAfter KEY_SRIGHT. pos:%d, sel: [%d, %d)\n", state->pos, state->selection.start, state->selection.end);
             break;
         }
@@ -213,13 +281,12 @@ void text_input_controller(WINDOW *input_win, TextInputState *state, int char_ty
             // back one word
         case KEY_ALT_B: {
             reset_selection_state(state);
-            if (state->size == 0 || state->pos == 0) {
-                break; // Already at the start; no state transition needed
+            if ( state->pos == 0) {
+                break; // Already at the start; no state. transition needed
             }
 
             // Begin inspection strictly to the left of the cursor
             int i = state->pos - 1;
-
             // 1. Skip whitespace immediately to the left
             while (i >= 0 && iswspace(state->buffer[i])) {
                 i--;
@@ -235,8 +302,41 @@ void text_input_controller(WINDOW *input_win, TextInputState *state, int char_ty
             break;
         }
 
-            // add the previous character to current selection
+            // add the previous word to current selection
         case KEY_SHIFT_ALT_B: {
+            if (state->pos == 0) {
+                break;
+            }
+
+            // int anchor = state->pos;
+            // if (state->selection.end != -1) {
+            //     anchor = state->pos == state->selection.start
+            //         ? state->selection.end
+            //         : state->selection.start;
+            // }
+
+            // Begin inspection strictly to the left of the cursor
+            int i = state->pos - 1;
+            // 1. Skip whitespace immediately to the left
+            while (i >= 0 && iswspace(state->buffer[i])) {
+                i--;
+            }
+
+            // 2. Consume word characters to find the word boundary
+            while (i >= 0 && !iswspace(state->buffer[i])) {
+                i--;
+            }
+            i += 1;
+
+            update_selection(state, i);
+
+
+            // state->pos = i + 1;
+            // state->selection.start = anchor < state->pos ? anchor : state->pos;
+            // state->selection.end = anchor > state->pos ? anchor : state->pos;
+            // if (state->selection.start == state->selection.end) {
+            //     reset_selection_state(state);
+            // }
 
             break;
         }
@@ -250,24 +350,63 @@ void text_input_controller(WINDOW *input_win, TextInputState *state, int char_ty
             if (state->size == 0 || state->pos == state->size ) {
                 break; // no text or already at end of line
             }
-            int i = state->pos;
 
-            // 1. Consume remaining characters of the current word
-            while (i < state->size && !iswspace(state->buffer[i])) {
+            // Begin inspection strictly to the right of the cursor
+            int i = state->pos + 1;
+
+            // 1. Skip whitespace immediately to the right
+            while ( i < state->size && iswspace(state->buffer[i])) {
                 i++;
             }
 
-            // 2. Consume whitespace until the beginning of the next word
-            while (i < state->size && iswspace(state->buffer[i])) {
+            // 2. Consume word characters to find the word boundary
+            while ( i < state->size && !iswspace(state->buffer[i])) {
                 i++;
             }
 
+            // 3. Position the cursor at the last character of the word
             state->pos = i;
             break;
+
         }
 
-            // add the next character to current selection
+            // add the next word to current selection
         case KEY_SHIFT_ALT_F: {
+            if (state->pos == state->size) {
+                break;
+            }
+
+            // int anchor = state->pos;
+            // if (state->selection.end != -1) {
+            //     anchor = state->pos == state->selection.start
+            //         ? state->selection.end
+            //         : state->selection.start;
+            // }
+
+            // Begin inspection strictly to the right of the cursor
+            int i = state->pos + 1;
+
+            // 1. Skip whitespace immediately to the right
+            while ( i < state->size && iswspace(state->buffer[i])) {
+                i++;
+            }
+
+            // 2. Consume word characters to find the word boundary
+            while ( i < state->size && !iswspace(state->buffer[i])) {
+                i++;
+            }
+
+            // 3. Position the cursor at the last character of the word
+            // state->pos = i;
+
+
+            update_selection(state, i);
+
+            // state->selection.start = anchor < state->pos ? anchor : state->pos;
+            // state->selection.end = anchor > state->pos ? anchor : state->pos;
+            // if (state->selection.start == state->selection.end) {
+            //     reset_selection_state(state);
+            // }
 
             break;
         }
@@ -278,8 +417,15 @@ void text_input_controller(WINDOW *input_win, TextInputState *state, int char_ty
         case KEY_DC:
         case 127:
         case '\b': {
-            // todo (rob) implement delete the current selection
-            if (state->pos > 0) {
+            // todo delete doesn't normally add the text to the copy/kill buffer. But, to support "undo"
+            //  we would need to add the deleted text to an undo buffer. And add some intelligence that
+            //  multiple single deletes at the same cursor location in a certain window of time should be merged, etc.
+
+            if (state->selection.start != -1){
+                delete_selection(state);
+                state->pos = state->selection.start;
+            }
+            else if (state->pos > 0) {
                 wmemmove(
                      &state->buffer[state->pos - 1],
                      &state->buffer[state->pos],
@@ -362,6 +508,26 @@ void text_input_controller(WINDOW *input_win, TextInputState *state, int char_ty
             break;
         }
 
+
+            // cut current selection
+        case KEY_CTRL_X: {
+            if (state->selection.start == -1 ) break;
+
+            int sel_len = state->selection.end - state->selection.start;
+            logfile_printf("KEY_CTRL_X: sel start:%d, end:%d, sel_len: %d, '%.*ls'\n",
+                state->selection.start, state->selection.end, sel_len, sel_len, &state->buffer[state->selection.start]);
+
+            int cut_len = state->selection.end - state->selection.start;
+            if (cut_len > 0) {
+                copy_selection(state);
+                delete_selection(state);
+                state->pos = state->selection.start;
+            }
+            reset_selection_state(state);
+            break;
+        }
+
+
              // Copy previous Word (Alt-W)
         case KEY_ALT_W: {
             // todo (rob) should this cause the previous word to become the selected text?
@@ -387,11 +553,32 @@ void text_input_controller(WINDOW *input_win, TextInputState *state, int char_ty
             }
             break;
         }
+
+            // copy current selection
+        case KEY_CTRL_C: {
+            if (state->selection.start == -1 ) break;
+
+            int copy_len = state->selection.end - state->selection.start;
+            copy_selection(state);
+
+            // todo animate copy action by blinking selection
+
+            break;
+        }
+
+            // select all
+        case KEY_ALT_A: {
+            state->selection.start = 0;
+            state->selection.end = state->size;
+            state->selection_anchor = 0;
+            state->pos = state->size;
+            break;
+        }
+
+
             // Paste / Yank (Ctrl-Y)
         case KEY_CTRL_Y:
         case KEY_CTRL_V: {
-            // todo (rob) if there is a current selection, replace it with the new text
-
             wchar_t paste_buf[TEXT_BUFFER_CAPACITY];
             size_t paste_len = paste_from_system_clipboard(paste_buf, TEXT_BUFFER_CAPACITY, true);
 
@@ -402,6 +589,13 @@ void text_input_controller(WINDOW *input_win, TextInputState *state, int char_ty
             }
 
             if (paste_len > 0) {
+                if (state->selection.start != -1 ) {
+                    // we're replacing the selection with the pasted text
+                    delete_selection(state);
+                    state->pos = state->selection.start;
+                    reset_selection_state(state);
+                }
+
                 // Clamp to remaining capacity
                 if (state->size + (int)paste_len >= state->capacity) {
                     paste_len = state->capacity - 1 - state->size;
@@ -538,26 +732,29 @@ void draw_input_window(WINDOW * input_win, TextInputState *state, bool has_focus
 
     // Position cursor relative to screen coordinates
     int scrolled_pos = 4 + (state->pos - state->scroll_offset);
-    // temp color
+    // temp color - trying to set properties for the actual cursor doesn't work
     init_pair(8, COLOR_RED, COLOR_BLACK);
     wmove(input_win, 1, scrolled_pos );
-    wchgat(input_win, 1, A_BLINK, 8, nullptr);
+    // wchgat(input_win, 1, A_BLINK, 8, nullptr);
 
-    // wrefresh(input_win);
     wnoutrefresh(input_win);
 
-    logfile_printf("win:y:%d, x:%d, state.pos:%d, state.scroll_offset:%d, scrolled pos:%d, sel x:%d, y:%d, \n",
+    logfile_printf("win:y:%d, x:%d, state.pos:%d, state.scroll_offset:%d, scrolled pos:%d, "
+                   "sel x:%d, y:%d, a:%d \n",
         getcury(input_win), getcurx(input_win),
         state->pos, state->scroll_offset, scrolled_pos,
-        state->selection.start, state->selection.end);
+        state->selection.start, state->selection.end, state->selection_anchor);
 }
+
+// switch
 
 int main() {
     setlocale(LC_ALL, "");
     init_log_file("forms_logfile.txt");
 
     initscr();
-    cbreak();
+    // cbreak();
+    raw(); // we need to use ctrl-C for copy, ctrl-X for cut, etc.
     noecho();
     keypad(stdscr, TRUE);
     set_escdelay(25);
@@ -577,6 +774,16 @@ int main() {
     define_key("\033b", KEY_ALT_B);
     define_key("\033f", KEY_ALT_F);
     define_key("\033w", KEY_ALT_W);
+    define_key("\033a", KEY_ALT_A);
+    define_key("\033B", KEY_SHIFT_ALT_B);
+    define_key("\033F", KEY_SHIFT_ALT_F);
+    // xterm-style encoding for Shift+Option+Left Arrow.
+    define_key("\033[1;4D", KEY_SHIFT_ALT_B);
+    // xterm-style encoding for Shift+Option+Right Arrow.
+    define_key("\033[1;4C", KEY_SHIFT_ALT_F);
+    // Some terminal configurations encode Shift+Option as modifier 3.
+    define_key("\033[1;3D", KEY_SHIFT_ALT_B);
+    define_key("\033[1;3C", KEY_SHIFT_ALT_F);
 
     enable_bracketed_paste(input_win);
 
@@ -590,6 +797,7 @@ int main() {
         .pos = msg_len,
         .scroll_offset = 0,
         .selection = {.start=-1, .end=-1 },
+        .selection_anchor = -1,
         .buffer =  L"Type here... Click Tab/Enter to switch focus.",
     };
 
@@ -676,10 +884,28 @@ int main() {
                 set_mouse_enabled(true); // Re-enable mouse upon submission
                 snprintf(status_msg, sizeof(status_msg), "[Text Submitted -> Focus: Menu (Mouse ON)]");
             } else if (char_type == OK && ch == 27) {
-                // Intercept raw ESC: drain all trailing sequence characters so
-                // characters like 'b', 'f', or '[' never reach text_input_controller
-                drain_escape_sequence(input_win);
-                snprintf(status_msg, sizeof(status_msg), "[Unhandled Escape Sequence Filtered]");
+                // Some terminals encode Shift+Option+Arrow as ESC followed by
+                // the ncurses key code (for example KEY_LEFT == 0x0104), not
+                // as one byte escape sequence that define_key() can match.
+                int old_delay = wgetdelay(input_win);
+                wtimeout(input_win, 0);
+
+                wint_t following_ch;
+                int following_type = wget_wch(input_win, &following_ch);
+                wtimeout(input_win, old_delay);
+
+                if (following_type == KEY_CODE_YES && following_ch == KEY_LEFT) {
+                    text_input_controller(input_win, &input_state,
+                                          KEY_CODE_YES, KEY_SHIFT_ALT_B);
+                } else if (following_type == KEY_CODE_YES && following_ch == KEY_RIGHT) {
+                    text_input_controller(input_win, &input_state,
+                                          KEY_CODE_YES, KEY_SHIFT_ALT_F);
+                } else {
+                    // Unknown escape input is filtered. Do not re-inject a
+                    // non-key byte, since it could become editor text.
+                    drain_escape_sequence(input_win);
+                    snprintf(status_msg, sizeof(status_msg), "[Unhandled Escape Sequence Filtered]");
+                }
             } else  {
                 text_input_controller(input_win, &input_state, char_type, ch);
             }
